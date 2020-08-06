@@ -5,9 +5,8 @@
 ##          Scotland: an interrupted time series analysis
 ## Short title: Impact of COVID-19 on secondary care in Scotland
 ## DOI: 
-## Script of: Analysis
-## Date: 06/08/2020
 ## Code author: Rachel H. Mulholland <Rachel.Mulholland@ed.ac.uk>
+## Description: Analysis code
 ######################################################################
 
 ##### 1 - Setting up and loading in the data #####
