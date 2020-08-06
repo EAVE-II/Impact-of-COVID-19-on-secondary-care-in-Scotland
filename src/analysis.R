@@ -1,13 +1,14 @@
 
-########################################################################################
-###### Impact of COVID-19 on accident and emergency attendances and emergency and ######
-###### planned hospital admissions in Scotland: an interrupted time series analysis ####
-########################################################################################
-
-# Latest update: 04/08/2020
-# Data source: https://scotland.shinyapps.io/phs-covid-wider-impact/_w_c89e0e10/#tab-5169-2
-# DOI:
-# Author: Rachel H. Mulholland <Rachel.Mulholland@ed.ac.uk>
+######################################################################
+## Title: Impact of COVID-19 on accident and emergency attendances
+##          and emergency and planned hospital admissions in
+##          Scotland: an interrupted time series analysis
+## Short title: Impact of COVID-19 on secondary care in Scotland
+## DOI: 
+## Script of: Analysis
+## Date: 06/08/2020
+## Code author: Rachel H. Mulholland <Rachel.Mulholland@ed.ac.uk>
+######################################################################
 
 ##### 1 - Setting up and loading in the data #####
 
