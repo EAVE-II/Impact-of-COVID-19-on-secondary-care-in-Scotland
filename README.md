@@ -1,10 +1,10 @@
 # EAVE II Analysis Repository
-## Impact of COVID-19 on accident and emergency attendances and emergency and planned hospital admissions in Scotland: an interrupted time series analysis  
+## Impact of COVID-19 on accident and emergency attendances and emergency and planned hospital admissions in Scotland: an interrupted time-series analysis  
 
 ### Paper Details
 > **Short title:** Impact of COVID-19 on secondary care in Scotland  
 >
->**DOI:** TBD
+>**DOI:** [10.1177/0141076820962447](https://journals.sagepub.com/doi/full/10.1177/0141076820962447)
 >
 >**Paper authors:** Mulholland RH, Wood R, Stagg HR, Fishbacher C, Villacampa J, Simpson CR et al  
 >
