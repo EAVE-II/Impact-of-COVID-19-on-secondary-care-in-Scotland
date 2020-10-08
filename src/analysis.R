@@ -2,9 +2,9 @@
 ######################################################################
 ## Title: Impact of COVID-19 on accident and emergency attendances
 ##          and emergency and planned hospital admissions in
-##          Scotland: an interrupted time series analysis
+##          Scotland: an interrupted time-series analysis
 ## Short title: Impact of COVID-19 on secondary care in Scotland
-## DOI: 
+## DOI: 10.1177/0141076820962447
 ## Code author: Rachel H. Mulholland <Rachel.Mulholland@ed.ac.uk>
 ## Description: Analysis code
 ######################################################################
@@ -18,7 +18,7 @@ library("tmap")
 library("ggplot2")
 library("gtable")
 library("rcompanion")
-
+library("tidyverse")
 
 #### 1.2 - Create colour scheme #### 
 phs_main <- rgb(67,53,139, maxColorValue = 255)
@@ -27,13 +27,16 @@ phs_blue <- rgb(0,149,212, maxColorValue = 255)
 phs_green <- rgb(134,188,37, maxColorValue = 255)
 phs_trendcol1 <- rgb(74,126,187, maxColorValue = 255)
 phs_trendcol2 <- rgb(151,171,204, maxColorValue = 255)
-phs_red <- rgb(201,12,12, maxColorValue = 255) 
-phs_gold <- rgb(254,160,5, maxColorValue = 255) 
-phs_grey <- rgb(190,190,190, maxColorValue = 255) 
+phs_red <- rgb(201,12,12, maxColorValue = 255)
+phs_gold <- rgb(254,160,5, maxColorValue = 255)
+phs_orange <- rgb(254,160,5, maxColorValue = 255) 
 phs_purple2 <- rgb(208,145,205, maxColorValue = 255)
-phs_orange <- rgb(246,156,80, maxColorValue = 255)
+phs_teal <- rgb(38,164,117, maxColorValue = 255)
 phs_spec <- colorRampPalette(c(phs_purple2, phs_main))
 phs_spec2 <- colorRampPalette(c(phs_main, phs_purple2))
+
+col_scheme <- c(phs_trendcol1, phs_main, phs_green, phs_purple2, phs_orange, phs_red, phs_teal, "gold2", "gray40")
+shape_scheme <- c(19,17,15,23,0,1,2, 3, 4)
 
 #### 1.3 - Load in data #### 
 
@@ -257,107 +260,115 @@ baseline_model_fn <- function(outcome){
   baseline_model_ANOVA <- anova(baseline_model)
   
   # [2] - Estimates
-    # Create skeleton dataset to put in estimates
-    baseline_model_estimates <- data.frame(matrix(ncol=6, nrow=3*2))
-    colnames(baseline_model_estimates) <- c("Outcome","BA_Pandemic_Lockdown", "Coeff_type", "est", "lwr", "upr")
-    baseline_model_estimates$Outcome <- rep(outcome, times=6)
-    baseline_model_estimates$BA_Pandemic_Lockdown <- rep(c("Before", "Between", "After"), times=2)
-    baseline_model_estimates$Coeff_type <- rep(c("Intercept", "Slope"), each=3)
+  # Create skeleton dataset to put in estimates
+  baseline_model_estimates <- data.frame(matrix(ncol=6, nrow=3*2))
+  colnames(baseline_model_estimates) <- c("Outcome","BA_Pandemic_Lockdown", "Coeff_type", "est", "lwr", "upr")
+  baseline_model_estimates$Outcome <- rep(outcome, times=6)
+  baseline_model_estimates$BA_Pandemic_Lockdown <- rep(c("Before", "Between", "After"), times=2)
+  baseline_model_estimates$Coeff_type <- rep(c("Intercept", "Slope"), each=3)
+  
+  # Define the three time-periods
+  time_periods <- c("Before", "Between", "After")
+  
+  # Fit model each time for each time-period to get estimates for slopes and intercepts
+  for(i in 1:3){
+    # Redefine baseline level for each loop (once for each time period)
+    scotland_data_subset <- within(scotland_data_subset, BA_Pandemic_Lockdown <- relevel(BA_Pandemic_Lockdown, ref= time_periods[i]))
     
-    # Define the three time-periods
-    time_periods <- c("Before", "Between", "After")
+    # Refit baseline model
+    baseline_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown, data=scotland_data_subset)
     
-    # Fit model each time for each time-period to get estimates for slopes and intercepts
-    for(i in 1:3){
-      # Redefine baseline level for each loop (once for each time period)
-      scotland_data_subset <- within(scotland_data_subset, BA_Pandemic_Lockdown <- relevel(BA_Pandemic_Lockdown, ref= time_periods[i]))
-      
-      # Refit baseline model
-      baseline_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown, data=scotland_data_subset)
-      
-      # Capture estimates and their 95% CI
-      baseline_coefs <- baseline_model$coefficients
-      baseline_coefs_cis <- confint(baseline_model)
-      
-      # Populate the estimate table
-      baseline_model_estimates$est[which(baseline_model_estimates$BA_Pandemic_Lockdown==time_periods[i])] <- round(baseline_coefs[1:2],3)
-      
-      baseline_model_estimates$lwr[which(baseline_model_estimates$BA_Pandemic_Lockdown==time_periods[i])] <- round(baseline_coefs_cis[1:2,1],3)
-      
-      baseline_model_estimates$upr[which(baseline_model_estimates$BA_Pandemic_Lockdown==time_periods[i])] <- round(baseline_coefs_cis[1:2,2],3)
-      
-      
-      
-    }
+    # Capture estimates and their 95% CI
+    baseline_coefs <- baseline_model$coefficients
+    baseline_coefs_cis <- confint(baseline_model)
     
+    # Populate the estimate table
+    baseline_model_estimates$est[which(baseline_model_estimates$BA_Pandemic_Lockdown==time_periods[i])] <- round(baseline_coefs[1:2],3)
+    
+    baseline_model_estimates$lwr[which(baseline_model_estimates$BA_Pandemic_Lockdown==time_periods[i])] <- round(baseline_coefs_cis[1:2,1],3)
+    
+    baseline_model_estimates$upr[which(baseline_model_estimates$BA_Pandemic_Lockdown==time_periods[i])] <- round(baseline_coefs_cis[1:2,2],3)
+    
+    
+    
+  }
+  
   
   # [3] - Fitted lines and 95% CI
-    # To create segmented fitted lines we must fit the model to all days in time-periods and stop at each of the change-points
-    
-    # Create a vector for each segmented time-period by day 
-    change_pts <- as.Date(c("2020-01-05", "2020-03-11", "2020-03-11","2020-03-23","2020-03-23","2020-06-28"))
-    # Before - Jan 05 to Mar 11
-    before_days <- as.Date(change_pts[1]:change_pts[2], origin = "1970-01-01")
-    # Between - Mar 11 to Mar 23
-    between_days <- as.Date(change_pts[3]:change_pts[4], origin = "1970-01-01")
-    # After - Mar 23 to 28 Jun
-    after_days <- as.Date(change_pts[5]:change_pts[6], origin = "1970-01-01")
-    
-    # Calculate the number of possible time points 
-    n <- length(before_days)+length(between_days)+length(after_days)
-    
-    # Next create a dataset with all time points in time-periods
-    baseline_model_prediction <- data.frame(matrix(ncol=3, nrow=n))
-    colnames(baseline_model_prediction) <- c("BA_Pandemic_Lockdown", "No_days", "Outcome")
-    
-    baseline_model_prediction$Outcome <- rep(outcome, times=n)
-    baseline_model_prediction$No_days <- as.numeric(c(c(before_days, between_days, after_days)-as.Date("2020-01-05")))
-    baseline_model_prediction$BA_Pandemic_Lockdown <- c(rep("Before", times=length(before_days)),
-                                                        rep("Between", times=length(between_days)),
-                                                        rep("After", times=length(after_days)))
-    
-    # Link variation raw datato prediction dataset
-    scotland_data_subset$Nodays_BA_Outcome <- paste(scotland_data_subset$No_days, scotland_data_subset$BA_Pandemic_Lockdown, scotland_data_subset$Outcome)
-    baseline_model_prediction$Nodays_BA_Outcome <- paste(baseline_model_prediction$No_days, baseline_model_prediction$BA_Pandemic_Lockdown, baseline_model_prediction$Outcome)
-    
-    baseline_model_prediction <- merge(x=baseline_model_prediction, y=scotland_data_subset[, c("Nodays_BA_Outcome", "Variation")], by="Nodays_BA_Outcome", all.x=T)
-    
-    
-    # Use the model to predict the outcome with 95% CI
-    predictions <- predict(baseline_model, newdata = baseline_model_prediction, interval = "confidence")
-    baseline_model_prediction$Predict <- predictions[,1]
-    baseline_model_prediction$Lwr <- predictions[,2]
-    baseline_model_prediction$Upr <- predictions[,3]
-    
-
+  # To create segmented fitted lines we must fit the model to all days in time-periods and stop at each of the change-points
+  
+  # Create a vector for each segmented time-period by day 
+  change_pts <- as.Date(c("2020-01-05", "2020-03-11", "2020-03-11","2020-03-23","2020-03-23","2020-06-28"))
+  # Before - Jan 05 to Mar 11
+  before_days <- as.Date(change_pts[1]:change_pts[2], origin = "1970-01-01")
+  # Between - Mar 11 to Mar 23
+  between_days <- as.Date(change_pts[3]:change_pts[4], origin = "1970-01-01")
+  # After - Mar 23 to 28 Jun
+  after_days <- as.Date(change_pts[5]:change_pts[6], origin = "1970-01-01")
+  
+  # Calculate the number of possible time points 
+  n <- length(before_days)+length(between_days)+length(after_days)
+  
+  # Next create a dataset with all time points in time-periods
+  baseline_model_prediction <- data.frame(matrix(ncol=3, nrow=n))
+  colnames(baseline_model_prediction) <- c("BA_Pandemic_Lockdown", "No_days", "Outcome")
+  
+  baseline_model_prediction$Outcome <- rep(outcome, times=n)
+  baseline_model_prediction$Date <- c(before_days, between_days, after_days)
+  baseline_model_prediction$No_days <- as.numeric(c(c(before_days, between_days, after_days)-as.Date("2020-01-05")))
+  baseline_model_prediction$BA_Pandemic_Lockdown <- c(rep("Before", times=length(before_days)),
+                                                      rep("Between", times=length(between_days)),
+                                                      rep("After", times=length(after_days)))
+  baseline_model_prediction$Time_period_no <- c(rep(1, times=length(before_days)),
+                                                rep(2, times=length(between_days)),
+                                                rep(3, times=length(after_days)))
+  
+  # Link variation raw datato prediction dataset
+  scotland_data_subset <- scotland_data_subset %>%
+    mutate(Time_period_no=recode(BA_Pandemic_Lockdown, "Before"=1, "Between"=2, "After"=3))
+  
+  
+  scotland_data_subset$Date_BA_Outcome <- paste(scotland_data_subset$Week_ending, scotland_data_subset$Time_period_no, scotland_data_subset$Outcome)
+  baseline_model_prediction$Date_BA_Outcome <- paste(baseline_model_prediction$Date, baseline_model_prediction$Time_period_no, baseline_model_prediction$Outcome)
+  
+  baseline_model_prediction <- merge(x=baseline_model_prediction, y=scotland_data_subset[, c("Date_BA_Outcome", "Variation")], by="Date_BA_Outcome", all.x=T)
+  
+  
+  # Use the model to predict the outcome with 95% CI
+  predictions <- predict(baseline_model, newdata = baseline_model_prediction, interval = "confidence")
+  baseline_model_prediction$Predict <- predictions[,1]
+  baseline_model_prediction$Lwr <- predictions[,2]
+  baseline_model_prediction$Upr <- predictions[,3]
+  
+  
   # [4] - Model diagnostics
-    # Residuals
-    baseline_residuals <- baseline_model$residuals
-    names(baseline_residuals) <- scotland_data_subset$BA_Pandemic_Lockdown
-    
-    #Fitted values
-    baseline_fitted_values <- baseline_model$fitted.values
-    names(baseline_fitted_values) <- scotland_data_subset$BA_Pandemic_Lockdown
-    
-    par(mfrow=c(1,3))
-    # Histograms
-    hist(baseline_residuals, breaks=50, main=" ", xlab="Residuals")
-    
-    # QQ Plot
-    qqnorm(baseline_residuals, main=" ")
-    qqline(baseline_residuals)
-    
-    # Residuals vs fitted
-    plot(baseline_fitted_values, baseline_residuals, xlab="Fitted values", ylab="Residuals")
-    abline(h=0,lty=2)
-    
-    
-    par(mfrow=c(1,2))
-    # ACF
-    acf(baseline_residuals, main=" ")
-    # PACF
-    pacf(baseline_residuals, main=" ")
-    
+  # Residuals
+  baseline_residuals <- baseline_model$residuals
+  names(baseline_residuals) <- scotland_data_subset$BA_Pandemic_Lockdown
+  
+  #Fitted values
+  baseline_fitted_values <- baseline_model$fitted.values
+  names(baseline_fitted_values) <- scotland_data_subset$BA_Pandemic_Lockdown
+  
+  par(mfrow=c(1,3))
+  # Histograms
+  hist(baseline_residuals, breaks=50, main=" ", xlab="Residuals")
+  
+  # QQ Plot
+  qqnorm(baseline_residuals, main=" ")
+  qqline(baseline_residuals)
+  
+  # Residuals vs fitted
+  plot(baseline_fitted_values, baseline_residuals, xlab="Fitted values", ylab="Residuals")
+  abline(h=0,lty=2)
+  
+  
+  par(mfrow=c(1,2))
+  # ACF
+  acf(baseline_residuals, main=" ")
+  # PACF
+  pacf(baseline_residuals, main=" ")
+  
   # Returning tables for function
   return(list(baseline_model_ANOVA, baseline_model_estimates, baseline_model_prediction))
 }
@@ -376,30 +387,33 @@ outcome_predictions <- rbind(data.frame(baseline_model_fn("A&E Attendances")[3])
                              data.frame(baseline_model_fn("Planned Hospital Admissions")[3]))
 
 # Transform the pandemic and lockdown dates and labels and average label into number of days
-pandemic_day <- as.Date("2020-03-11")-as.Date("2020-01-05")
-pandemic_label <- as.Date("2020-03-07")-as.Date("2020-01-05")
-lockdown_day <- as.Date("2020-03-23")-as.Date("2020-01-05")
-lockdown_label <- as.Date("2020-03-27")-as.Date("2020-01-05")
-average_label <- as.Date("2020-06-14")-as.Date("2020-01-05")
+pandemic_day <- as.Date("2020-03-11")
+pandemic_label <- as.Date("2020-03-07")
+lockdown_day <- as.Date("2020-03-23")
+lockdown_label <- as.Date("2020-03-27")
+average_label <- as.Date("2020-06-14")
 
 # Plot the data:
 # Figure 2. Fitted lines of the baseline model for A&E attendances and hospital admissions across Scotland
-ggplot(outcome_predictions, aes(x=No_days, y=Variation))+
-  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Outcome, color = NULL), alpha = .15)+
-  geom_point(aes(shape=Outcome, col=Outcome), size=1.5)+
-  geom_line(aes(x=No_days, y=Predict, linetype=Outcome, col=Outcome), size=1)+
-  theme_classic()+
-  labs(x = "Number of days from 5th Jan 2020", y ="% change between 2020 and 2018-2019 average")+
+ggplot(outcome_predictions, aes(x=Date, y=Variation))+
   geom_hline(yintercept = 0, linetype=2)+
   annotate("text", x=average_label, y=2, label="2018-2019 average", hjust=1, size=3)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  annotate("text", x=lockdown_label, y=-17, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
-  annotate("text", x=pandemic_label, y=-17, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1)+
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_trendcol2, phs_green))+
-  scale_linetype_manual("Outcome", values=2:4)+
-  scale_fill_manual("Outcome", values=c(phs_trendcol1, phs_trendcol2, phs_green))
-
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Outcome, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict, col=Outcome), size=0.75, linetype=1)+
+  geom_point(aes(shape=Outcome, col=Outcome), size=2)+
+  theme_classic()+
+  labs(x = "Week ending (2020)", y ="% change between 2020 and 2018-2019 average")+
+  geom_vline(xintercept=lockdown_day, color="white", linetype=1, size=0.75)+
+  geom_vline(xintercept=pandemic_day, color="white", linetype=1, size=0.75)+
+  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=2, size=0.75)+
+  annotate("text", x=lockdown_label, y=-17, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0, size=3.5)+
+  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=2, size=0.75)+
+  annotate("text", x=pandemic_label, y=-17, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3.5)+
+  scale_color_manual("Outcome",values=col_scheme)+
+  scale_fill_manual("Outcome", values=col_scheme)+
+  scale_shape_manual("Outcome", values=shape_scheme)+
+  #theme(legend.position = "none") +
+  scale_x_date(date_breaks = "months" , date_labels = "%b")
 
 #### 2.3.3 - Plot estimates of fitted models ####
 
@@ -719,183 +733,191 @@ demographic_alternative_model_fn <- function(demographic, outcome, model){
   
   
   # [2] Estimates
-    # Find number of categories
-    n <- length(categories)
+  # Find number of categories
+  n <- length(categories)
+  
+  # Create skeleton dataset
+  alternative_model_estimates <- data.frame(matrix(ncol=7, nrow=3*2*n))
+  colnames(alternative_model_estimates) <- c("Outcome","Category","BA_Pandemic_Lockdown", "Coeff_type", "est", "lwr", "upr")
+  alternative_model_estimates$Outcome <- rep(outcome, times=6*n)
+  alternative_model_estimates$Category <- rep(categories, each=6)
+  alternative_model_estimates$BA_Pandemic_Lockdown <- rep(rep(c("Before", "Between", "After"), each=2), times=n)
+  alternative_model_estimates$Coeff_type <- rep(c("Intercept", "Slope"), times=3*n)
+  
+  time_periods <- c("Before", "Between", "After")
+  # Carry out with different baseline change-points
+  for(i in 1:3){
+    demographic_data_outcome <- within(demographic_data_outcome, BA_Pandemic_Lockdown <- relevel(BA_Pandemic_Lockdown, ref= time_periods[i]))
     
-    # Create skeleton dataset
-    alternative_model_estimates <- data.frame(matrix(ncol=7, nrow=3*2*n))
-    colnames(alternative_model_estimates) <- c("Outcome","Category","BA_Pandemic_Lockdown", "Coeff_type", "est", "lwr", "upr")
-    alternative_model_estimates$Outcome <- rep(outcome, times=6*n)
-    alternative_model_estimates$Category <- rep(categories, each=6)
-    alternative_model_estimates$BA_Pandemic_Lockdown <- rep(rep(c("Before", "Between", "After"), each=2), times=n)
-    alternative_model_estimates$Coeff_type <- rep(c("Intercept", "Slope"), times=3*n)
-    
-    time_periods <- c("Before", "Between", "After")
-    # Carry out with different baseline change-points
-    for(i in 1:3){
-      demographic_data_outcome <- within(demographic_data_outcome, BA_Pandemic_Lockdown <- relevel(BA_Pandemic_Lockdown, ref= time_periods[i]))
+    for(j in 1:n){
       
-      for(j in 1:n){
-        
-        demographic_data_outcome <- within(demographic_data_outcome, Category <- relevel(Category, ref= categories[j]))
-        
-        
-        # Chosen model
-        if(model==1){
-          alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category, data=demographic_data_outcome)
+      demographic_data_outcome <- within(demographic_data_outcome, Category <- relevel(Category, ref= categories[j]))
+      
+      
+      # Chosen model
+      if(model==1){
+        alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category, data=demographic_data_outcome)
+      } else {
+        if(model==2){
+          alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category*No_days, data=demographic_data_outcome)
         } else {
-          if(model==2){
-            alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category*No_days, data=demographic_data_outcome)
+          if(model==3){
+            alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category*BA_Pandemic_Lockdown, data=demographic_data_outcome)
           } else {
-            if(model==3){
-              alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category*BA_Pandemic_Lockdown, data=demographic_data_outcome)
-            } else {
-              if(model==4){
-                alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category*No_days+Category*BA_Pandemic_Lockdown, data=demographic_data_outcome)
-          
-              }
+            if(model==4){
+              alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Category*No_days+Category*BA_Pandemic_Lockdown, data=demographic_data_outcome)
+              
             }
           }
         }
-        
-        
-     
-        
-        
-        alternative_coefs <- alternative_model$coefficients
-        alternative_coefs_cis <- confint(alternative_model)
-        
-        alternative_model_estimates$est[which(alternative_model_estimates$BA_Pandemic_Lockdown==time_periods[i]&
-                                          alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs[1:2],3)
-        
-        alternative_model_estimates$lwr[which(alternative_model_estimates$BA_Pandemic_Lockdown==time_periods[i]&
-                                          alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs_cis[1:2,1],3)
-        
-        alternative_model_estimates$upr[which(alternative_model_estimates$BA_Pandemic_Lockdown==time_periods[i]&
-                                          alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs_cis[1:2,2],3)
-        
-        
-        
-        
-        
       }
       
       
       
+      
+      
+      alternative_coefs <- alternative_model$coefficients
+      alternative_coefs_cis <- confint(alternative_model)
+      
+      alternative_model_estimates$est[which(alternative_model_estimates$BA_Pandemic_Lockdown==time_periods[i]&
+                                              alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs[1:2],3)
+      
+      alternative_model_estimates$lwr[which(alternative_model_estimates$BA_Pandemic_Lockdown==time_periods[i]&
+                                              alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs_cis[1:2,1],3)
+      
+      alternative_model_estimates$upr[which(alternative_model_estimates$BA_Pandemic_Lockdown==time_periods[i]&
+                                              alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs_cis[1:2,2],3)
+      
+      
+      
+      
+      
     }
     
-  # [3] Fitted lines and 95% CI
-    
-    # To create segmented fitted lines we must fit the model to all days in time-periods and stop at each of the change-points
-    
-    # Create a vector for each segmented time-period by day 
-    change_pts <- as.Date(c("2020-01-05", "2020-03-11", "2020-03-11","2020-03-23","2020-03-23","2020-06-28"))
-    # Before - Jan 05 to Mar 11
-    before_days <- as.Date(change_pts[1]:change_pts[2], origin = "1970-01-01")
-    # Between - Mar 11 to Mar 23
-    between_days <- as.Date(change_pts[3]:change_pts[4], origin = "1970-01-01")
-    # After - Mar 23 to 28 Jun
-    after_days <- as.Date(change_pts[5]:change_pts[6], origin = "1970-01-01")
-    
-    # Vector of all days and timeperiods
-    all_no_days <- as.numeric(c(c(before_days, between_days, after_days)-as.Date("2020-01-05")))
-    all_time_periods <- c(rep("Before", times=length(before_days)),
-                          rep("Between", times=length(between_days)),
-                          rep("After", times=length(after_days)))
-    
-    # Calculate the number of possible time points 
-    m <- length(before_days)+length(between_days)+length(after_days)
-    
-    # Next create a dataset with all time points in time-periods
     
     
-    alternative_model_prediction <- data.frame(matrix(ncol=4, nrow=m*n))
-    colnames(alternative_model_prediction) <- c("BA_Pandemic_Lockdown", "No_days", "Outcome", "Category")
-    
-    alternative_model_prediction$Outcome <- rep(outcome, times=m*n)
-    alternative_model_prediction$No_days <- rep(all_no_days, times=n)
-    alternative_model_prediction$BA_Pandemic_Lockdown <- rep(all_time_periods, times=n)
-    alternative_model_prediction$Category <- rep(categories, each=m)
-    
-    alternative_model_prediction <- transform(alternative_model_prediction, Category = factor(Category, levels= categories))
-    # Link variation raw datato prediction dataset
-    demographic_data_outcome$Nodays_BA_Outcome_Category <- paste(demographic_data_outcome$No_days, demographic_data_outcome$BA_Pandemic_Lockdown, 
-                                                             demographic_data_outcome$Outcome, demographic_data_outcome$Category)
-    alternative_model_prediction$Nodays_BA_Outcome_Category <- paste(alternative_model_prediction$No_days, alternative_model_prediction$BA_Pandemic_Lockdown, 
-                                                                     alternative_model_prediction$Outcome, alternative_model_prediction$Category)
-    
-    alternative_model_prediction <- merge(x=alternative_model_prediction, y=demographic_data_outcome[, c("Nodays_BA_Outcome_Category", "Variation")], by="Nodays_BA_Outcome_Category", all.x=T)
-    
-    
-    # Use the model to predict the outcome with 95% CI
-    predictions <- predict(alternative_model, newdata = alternative_model_prediction, interval = "confidence")
-    alternative_model_prediction$Predict <- predictions[,1]
-    alternative_model_prediction$Lwr <- predictions[,2]
-    alternative_model_prediction$Upr <- predictions[,3]
-    
+  }
   
-    
-    
+  # [3] Fitted lines and 95% CI
+  
+  # To create segmented fitted lines we must fit the model to all days in time-periods and stop at each of the change-points
+  
+  # Create a vector for each segmented time-period by day 
+  change_pts <- as.Date(c("2020-01-05", "2020-03-11", "2020-03-11","2020-03-23","2020-03-23","2020-06-28"))
+  # Before - Jan 05 to Mar 11
+  before_days <- as.Date(change_pts[1]:change_pts[2], origin = "1970-01-01")
+  # Between - Mar 11 to Mar 23
+  between_days <- as.Date(change_pts[3]:change_pts[4], origin = "1970-01-01")
+  # After - Mar 23 to 28 Jun
+  after_days <- as.Date(change_pts[5]:change_pts[6], origin = "1970-01-01")
+  
+  # Vector of all days and timeperiods
+  all_dates <- c(before_days, between_days, after_days)
+  all_no_days <- as.numeric(c(c(before_days, between_days, after_days)-as.Date("2020-01-05")))
+  all_time_periods <- c(rep("Before", times=length(before_days)),
+                        rep("Between", times=length(between_days)),
+                        rep("After", times=length(after_days)))
+  all_time_periods_no <- c(rep(1, times=length(before_days)),
+                           rep(2, times=length(between_days)),
+                           rep(3, times=length(after_days)))
+  
+  # Calculate the number of possible time points 
+  m <- length(before_days)+length(between_days)+length(after_days)
+  
+  # Next create a dataset with all time points in time-periods
+  alternative_model_prediction <- data.frame(matrix(ncol=4, nrow=m*n))
+  colnames(alternative_model_prediction) <- c("BA_Pandemic_Lockdown", "No_days", "Outcome", "Category")
+  
+  alternative_model_prediction$Outcome <- rep(outcome, times=m*n)
+  alternative_model_prediction$Dates <- rep(all_dates, times=n)
+  alternative_model_prediction$No_days <- rep(all_no_days, times=n)
+  alternative_model_prediction$BA_Pandemic_Lockdown <- rep(all_time_periods, times=n)
+  alternative_model_prediction$Time_period_no <- rep(all_time_periods_no, times=n)
+  alternative_model_prediction$Category <- rep(categories, each=m)
+  
+  alternative_model_prediction <- transform(alternative_model_prediction, Category = factor(Category, levels= categories))
+  
+  # Link variation raw datato prediction dataset
+  demographic_data_outcome <- demographic_data_outcome %>%
+    mutate(Time_period_no=recode(BA_Pandemic_Lockdown, "Before"=1, "Between"=2, "After"=3))
+  
+  demographic_data_outcome$Date_BA_Outcome_Category <- paste(demographic_data_outcome$Week_ending, demographic_data_outcome$Time_period_no, 
+                                                             demographic_data_outcome$Outcome, demographic_data_outcome$Category)
+  alternative_model_prediction$Date_BA_Outcome_Category <- paste(alternative_model_prediction$Date, alternative_model_prediction$Time_period_no, 
+                                                                 alternative_model_prediction$Outcome, alternative_model_prediction$Category)
+  
+  alternative_model_prediction <- merge(x=alternative_model_prediction, y=demographic_data_outcome[, c("Date_BA_Outcome_Category", "Variation")], by="Date_BA_Outcome_Category", all.x=T)
+  
+  
+  # Use the model to predict the outcome with 95% CI
+  predictions <- predict(alternative_model, newdata = alternative_model_prediction, interval = "confidence")
+  alternative_model_prediction$Predict <- predictions[,1]
+  alternative_model_prediction$Lwr <- predictions[,2]
+  alternative_model_prediction$Upr <- predictions[,3]
+  
+  
+  
+  
   # [4] Model diagnostics
-    # Residuals
-    alternative_residuals <- alternative_model$residuals
-    names(alternative_residuals) <- demographic_data_outcome$Category
-    
-    #Fitted values
-    alternative_fitted_values <- alternative_model$fitted.values
-    names(alternative_fitted_values) <- demographic_data_outcome$BA_Pandemic_Lockdown
-    
-    par(mfrow=c(1,3))
-    # Histograms
-    hist(alternative_residuals, breaks=50, main=" ", xlab="Residuals")
-    
-    # QQ Plot
-    qqnorm(alternative_residuals, main=" ")
-    qqline(alternative_residuals)
-    
-    # Residuals vs fitted
-    plot(alternative_fitted_values, alternative_residuals, xlab="Fitted values", ylab="Residuals")
-    abline(h=0,lty=2)
+  # Residuals
+  alternative_residuals <- alternative_model$residuals
+  names(alternative_residuals) <- demographic_data_outcome$Category
+  
+  #Fitted values
+  alternative_fitted_values <- alternative_model$fitted.values
+  names(alternative_fitted_values) <- demographic_data_outcome$BA_Pandemic_Lockdown
+  
+  par(mfrow=c(1,3))
+  # Histograms
+  hist(alternative_residuals, breaks=50, main=" ", xlab="Residuals")
+  
+  # QQ Plot
+  qqnorm(alternative_residuals, main=" ")
+  qqline(alternative_residuals)
+  
+  # Residuals vs fitted
+  plot(alternative_fitted_values, alternative_residuals, xlab="Fitted values", ylab="Residuals")
+  abline(h=0,lty=2)
+  
+  # ACF
+  if(demographic=="Sex"){
+    par(mfrow=c(1,2))
+  } else {if(demographic=="Age"){
+    par(mfrow=c(2,4))
+  } else {if(demographic=="SIMD"){
+    par(mfrow=c(1,5))
+  }}}
+  
+  for(k in 1:length(categories)){
+    alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
     
     # ACF
-    if(demographic=="Sex"){
-      par(mfrow=c(1,2))
-    } else {if(demographic=="Age"){
-      par(mfrow=c(2,4))
-    } else {if(demographic=="SIMD"){
-      par(mfrow=c(1,5))
-    }}}
-    
-     for(k in 1:length(categories)){
-        alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
-      
-      # ACF
-      acf(alternative_residuals_category, main=categories[k])
-    }
-
+    acf(alternative_residuals_category, main=categories[k])
+  }
+  
+  
+  # PACF
+  if(demographic=="Sex"){
+    par(mfrow=c(1,2))
+  } else {if(demographic=="Age"){
+    par(mfrow=c(2,4))
+  } else {if(demographic=="SIMD"){
+    par(mfrow=c(1,5))
+  }}}
+  
+  for(k in 1:length(categories)){
+    alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
     
     # PACF
-    if(demographic=="Sex"){
-      par(mfrow=c(1,2))
-    } else {if(demographic=="Age"){
-      par(mfrow=c(2,4))
-    } else {if(demographic=="SIMD"){
-      par(mfrow=c(1,5))
-    }}}
-    
-    for(k in 1:length(categories)){
-      alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
-      
-      # PACF
-      pacf(alternative_residuals_category, main=categories[k])
-    }
-    
-    
-    
-  # Output
-    return(list(alternative_model_anova, alternative_model_estimates, alternative_model_prediction))
+    pacf(alternative_residuals_category, main=categories[k])
+  }
   
-
+  
+  
+  # Output
+  return(list(alternative_model_anova, alternative_model_estimates, alternative_model_prediction))
+  
+  
   
 }
 # Age model for A&E Attendances (Model 3)
@@ -915,62 +937,83 @@ simd_emerg_model <- demographic_alternative_model_fn("SIMD", "Emergency Hospital
 # Figure 4. Fitted lines of speciality models for hospital admissions
 
 # Transform the pandemic and lockdown dates and labels and average label into number of days
-pandemic_day <- as.Date("2020-03-11")-as.Date("2020-01-05")
-pandemic_label <- as.Date("2020-03-07")-as.Date("2020-01-05")
-lockdown_day <- as.Date("2020-03-23")-as.Date("2020-01-05")
-lockdown_label <- as.Date("2020-03-27")-as.Date("2020-01-05")
-average_label <- as.Date("2020-06-14")-as.Date("2020-01-05")
+pandemic_day <- as.Date("2020-03-11")
+pandemic_label <- as.Date("2020-03-07")
+lockdown_day <- as.Date("2020-03-23")
+lockdown_label <- as.Date("2020-03-27")
+average_label <- as.Date("2020-06-14")
 
 # Plot the data:
 # Figure 3. Fitted lines of age models for A&E attendances and hospital admissions
 # S6 Appendix: Figure 1. Fitted lines of SIMD model for emergency hospital admissions
-p_ae_age <- ggplot(data.frame(age_ae_model[3]), aes(x=No_days, y=Variation))+
+p_ae_age <- ggplot(data.frame(age_ae_model[3]), aes(x=Dates, y=Variation))+
   geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
-  geom_point(aes(shape=Category, col=Category), size=1.5)+
-  geom_line(aes(x=No_days, y=Predict, linetype=Category, col=Category), size=1)+
+  geom_line(aes(x=Dates, y=Predict, col=Category), size=0.75)+
+  geom_vline(xintercept=lockdown_day, color="white", linetype=1, size=0.75)+
+  geom_vline(xintercept=pandemic_day, color="white", linetype=1, size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
   theme_classic()+
   labs(x = " ", y =" ",
        title="A)")+
   geom_hline(yintercept = 0, linetype=2)+
   annotate("text", x=average_label, y=4, label="2018-2019 average", hjust=1, size=3)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  annotate("text", x=lockdown_label, y=-15, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
-  annotate("text", x=pandemic_label, y=-40, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1)+
-  scale_color_manual("Age",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))+
-  scale_linetype_manual("Age", values=c(1,2,3,4,1,2,3))+
-  scale_shape_manual("Age", values=c(15,19,17,23,0,1,2))+
-  scale_fill_manual("Age",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))
+  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=2, size=0.75)+
+  annotate("text", x=pandemic_label, y=-40, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3.5)+
+  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=2, size=0.75)+
+  annotate("text", x=lockdown_label, y=-15, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0, size=3.5)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b")
+#theme(legend.position = "none")
 
-p_emerg_age <- ggplot(data.frame(age_emerg_model[3]), aes(x=No_days, y=Variation))+
+
+p_emerg_age <- ggplot(data.frame(age_emerg_model[3]), aes(x=Dates, y=Variation))+
   geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
-  geom_point(aes(shape=Category, col=Category), size=1.5)+
-  geom_line(aes(x=No_days, y=Predict, linetype=Category, col=Category), size=1)+
+  geom_line(aes(x=Dates, y=Predict, col=Category), size=0.75)+
+  geom_vline(xintercept=lockdown_day, color="white", linetype=1, size=0.75)+
+  geom_vline(xintercept=pandemic_day, color="white", linetype=1, size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
   theme_classic()+
   labs(x = " ", y ="% change between 2020 and 2018-2019 average",
        title="B)")+
   geom_hline(yintercept = 0, linetype=2)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
-  scale_color_manual("Age",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))+
-  scale_linetype_manual("Age", values=c(1,2,3,4,1,2,3))+
-  scale_shape_manual("Age", values=c(15,19,17,23,0,1,2))+
-  scale_fill_manual("Age",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))
+  #annotate("text", x=average_label, y=4, label="2018-2019 average", hjust=1, size=3)+
+  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=2, size=0.75)+
+  #annotate("text", x=lockdown_label, y=40, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0, size=3.5)+
+  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=2, size=0.75)+
+  #annotate("text", x=pandemic_label, y=-15, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3.5)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b")
+#theme(legend.position = "none")
 
-p_planned_age <- ggplot(data.frame(age_planned_model[3]), aes(x=No_days, y=Variation))+
+
+p_planned_age <- ggplot(data.frame(age_planned_model[3]), aes(x=Dates, y=Variation))+
   geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
-  geom_point(aes(shape=Category, col=Category), size=1.5)+
-  geom_line(aes(x=No_days, y=Predict, linetype=Category, col=Category), size=1)+
+  geom_line(aes(x=Dates, y=Predict, col=Category), size=0.75)+
+  geom_vline(xintercept=lockdown_day, color="white", linetype=1, size=0.75)+
+  geom_vline(xintercept=pandemic_day, color="white", linetype=1, size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
   theme_classic()+
-  labs(x = "Number of days from 5th Jan 2020", y =" ",
+  labs(x = "Week ending (2020)", y =" ",
        title="C)")+
   geom_hline(yintercept = 0, linetype=2)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
-  scale_color_manual("Age",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))+
-  scale_linetype_manual("Age", values=c(1,2,3,4,1,2,3))+
-  scale_shape_manual("Age", values=c(15,19,17,23,0,1,2))+
-  scale_fill_manual("Age",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))
+  #annotate("text", x=average_label, y=4, label="2018-2019 average", hjust=1, size=3)+
+  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=2, size=0.75)+
+  #annotate("text", x=lockdown_label, y=40, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0, size=3.5)+
+  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=2, size=0.75)+
+  #annotate("text", x=pandemic_label, y=-15, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3.5)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b")
+#theme(legend.position = "none")
+
 
 
 # Plot together
@@ -982,7 +1025,7 @@ g_planned_age <- ggplotGrob(p_planned_age)
 plot(rbind(g_ae_age,g_emerg_age,g_planned_age))
 
 #### 3.3.1.2 - SIMD plots ####
-# S6 Appendix: Figure 1
+# S6 Appendix: Figure 1 (Colour scheme slightly different)
 ggplot(data.frame(simd_emerg_model[3]), aes(x=No_days, y=Variation))+
   geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
   geom_point(aes(shape=Category, col=Category), size=1.5)+
@@ -991,12 +1034,14 @@ ggplot(data.frame(simd_emerg_model[3]), aes(x=No_days, y=Variation))+
   labs(x = "Number of days from 5th Jan 2020", y ="% change between 2020 and 2018-2019 average",
        title=" ")+
   geom_hline(yintercept = 0, linetype=2)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
+  geom_vline(xintercept=c(lockdown_day-as.Date("2020-01-05")), color=phs_purple, linetype=1, size=1)+
+  geom_vline(xintercept = c(pandemic_day-as.Date("2020-01-05")), colour=phs_blue, linetype=1, size=1)+
   scale_color_manual("SIMD",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))+
   scale_linetype_manual("SIMD", values=c(1,2,3,4,1,2,3))+
   scale_shape_manual("SIMD", values=c(15,19,17,23,0,1,2))+
   scale_fill_manual("SIMD",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red))
+
+
 
 
 #### 3.3.2 - Plot estimates of models ####
@@ -1039,14 +1084,10 @@ ggplot(data=outcome_estimates_age_slopes, aes(x=BA_Pandemic_Lockdown, y=est, col
 
 
 #### 3.3.2.2 - SIMD estimates ####
-
-
 outcome_estimates_simd <- data.frame(simd_emerg_model[2])
 outcome_estimates_simd <- transform(outcome_estimates_simd, BA_Pandemic_Lockdown = factor(BA_Pandemic_Lockdown, levels= c("After", "Between", "Before")))
 outcome_estimates_simd$Category <- as.factor(outcome_estimates_simd$Category)
 outcome_estimates_simd <- transform(outcome_estimates_simd, Category = factor(Category, levels= simd))
-
-
 
 outcome_estimates_simd_int <- subset(outcome_estimates_simd, Coeff_type=="Intercept")
 
@@ -1190,7 +1231,7 @@ specialty_alternative_model_fn <- function(outcome, model){
   
   # Subset
   specialty_data_outcome <- subset(scotland_data_specialty, Outcome==outcome)
-
+  
   # [1] ANOVA
   if(model==1){
     alternative_model <- lm(Variation ~ No_days*BA_Pandemic_Lockdown+Specialty, data=specialty_data_outcome)
@@ -1218,6 +1259,7 @@ specialty_alternative_model_fn <- function(outcome, model){
   n <- length(categories)
   
   # Create skeleton dataset
+  
   alternative_model_estimates <- data.frame(matrix(ncol=7, nrow=3*2*n))
   colnames(alternative_model_estimates) <- c("Outcome","Specialty","BA_Pandemic_Lockdown", "Coeff_type", "est", "lwr", "upr")
   alternative_model_estimates$Outcome <- rep(outcome, times=6*n)
@@ -1280,7 +1322,6 @@ specialty_alternative_model_fn <- function(outcome, model){
     
     
   }
-  
   # [3] Fitted lines and 95% CI
   
   # To create segmented fitted lines we must fit the model to all days in time-periods and stop at each of the change-points
@@ -1295,33 +1336,42 @@ specialty_alternative_model_fn <- function(outcome, model){
   after_days <- as.Date(change_pts[5]:change_pts[6], origin = "1970-01-01")
   
   # Vector of all days and timeperiods
+  all_dates <- c(before_days, between_days, after_days)
   all_no_days <- as.numeric(c(c(before_days, between_days, after_days)-as.Date("2020-01-05")))
   all_time_periods <- c(rep("Before", times=length(before_days)),
                         rep("Between", times=length(between_days)),
                         rep("After", times=length(after_days)))
+  all_time_periods_no <- c(rep(1, times=length(before_days)),
+                           rep(2, times=length(between_days)),
+                           rep(3, times=length(after_days)))
   
   # Calculate the number of possible time points 
   m <- length(before_days)+length(between_days)+length(after_days)
   
   # Next create a dataset with all time points in time-periods
-  
-  
   alternative_model_prediction <- data.frame(matrix(ncol=4, nrow=m*n))
   colnames(alternative_model_prediction) <- c("BA_Pandemic_Lockdown", "No_days", "Outcome", "Specialty")
   
   alternative_model_prediction$Outcome <- rep(outcome, times=m*n)
+  alternative_model_prediction$Dates <- rep(all_dates, times=n)
   alternative_model_prediction$No_days <- rep(all_no_days, times=n)
   alternative_model_prediction$BA_Pandemic_Lockdown <- rep(all_time_periods, times=n)
+  alternative_model_prediction$Time_period_no <- rep(all_time_periods_no, times=n)
   alternative_model_prediction$Specialty <- rep(categories, each=m)
   
   alternative_model_prediction <- transform(alternative_model_prediction, Specialty = factor(Specialty, levels= categories))
+  
+  
   # Link variation raw datato prediction dataset
-  specialty_data_outcome$Nodays_BA_Outcome_Specialty <- paste(specialty_data_outcome$No_days, specialty_data_outcome$BA_Pandemic_Lockdown, 
-                                                               specialty_data_outcome$Outcome, specialty_data_outcome$Specialty)
-  alternative_model_prediction$Nodays_BA_Outcome_Specialty <- paste(alternative_model_prediction$No_days, alternative_model_prediction$BA_Pandemic_Lockdown, 
+  specialty_data_outcome <- specialty_data_outcome %>%
+    mutate(Time_period_no=recode(BA_Pandemic_Lockdown, "Before"=1, "Between"=2, "After"=3))
+  
+  specialty_data_outcome$Date_BA_Outcome_Speciality <- paste(specialty_data_outcome$Week_ending, specialty_data_outcome$Time_period_no, 
+                                                             specialty_data_outcome$Outcome, specialty_data_outcome$Specialty)
+  alternative_model_prediction$Date_BA_Outcome_Speciality <- paste(alternative_model_prediction$Date, alternative_model_prediction$Time_period_no, 
                                                                    alternative_model_prediction$Outcome, alternative_model_prediction$Specialty)
   
-  alternative_model_prediction <- merge(x=alternative_model_prediction, y=specialty_data_outcome[, c("Nodays_BA_Outcome_Specialty", "Variation")], by="Nodays_BA_Outcome_Specialty", all.x=T)
+  alternative_model_prediction <- merge(x=alternative_model_prediction, y=specialty_data_outcome[, c("Date_BA_Outcome_Speciality", "Variation")], by="Date_BA_Outcome_Speciality", all.x=T)
   
   
   # Use the model to predict the outcome with 95% CI
@@ -1390,42 +1440,42 @@ specialty_planned_model <- specialty_alternative_model_fn("Planned Hospital Admi
 #### 4.3.1 - Plot fitted models ####
 
 # Emergency
-p_specialty_emerg <- ggplot(data.frame(specialty_emerg_model[3]), aes(x=No_days, y=Variation))+
-  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Specialty, color = NULL), alpha = .15)+
-  geom_point(aes(shape=Specialty, col=Specialty), size=1.5)+
-  geom_line(aes(x=No_days, y=Predict, linetype=Specialty, col=Specialty), size=1)+
+p_specialty_emerg <- ggplot(data.frame(specialty_emerg_model[3]), aes(x=Dates, y=Variation))+
+  geom_hline(yintercept = 0, linetype=2)+
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, color = NULL), fill = phs_main, alpha = .15)+
+  geom_line(aes(x=Dates, y=Predict),col=phs_main, size=0.5)+
+  geom_vline(xintercept=lockdown_day, color="white", linetype=1, size=0.5)+
+  geom_vline(xintercept=pandemic_day, color="white", linetype=1, size=0.5)+
+  geom_point(col=phs_main, shape=17, size=1)+
   theme_classic()+
   labs(x = " ", y ="% change between 2020 and 2018-2019 average",
        title="A)")+
-  geom_hline(yintercept = 0, linetype=2)+
-  annotate("text", x=average_label, y=4, label="2018-2019 average", hjust=1, size=3)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  annotate("text", x=lockdown_label, y=30, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
-  annotate("text", x=pandemic_label, y=-50, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1)+
-  scale_color_manual("Specialty",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red, phs_grey, phs_orange))+
-  scale_linetype_manual("Specialty", values=1:9)+
-  scale_shape_manual("Specialty", values=c(15,19,17,23,0,1,2, 3, 4))+
-  scale_fill_manual("Specialty",values=c(phs_trendcol1, phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red, phs_grey, phs_orange))
-
-
+  #annotate("text", x=average_label, y=4, label="2018-2019 average", hjust=1, size=3)+
+  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=2, size=0.5)+
+  #annotate("text", x=pandemic_label, y=-40, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3.5)+
+  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=2, size=0.5)+
+  #annotate("text", x=lockdown_label, y=15, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0, size=3.5)+
+  facet_wrap(~Specialty)+
+  theme(legend.position = "none")
 
 # Planned
-p_specialty_planned <- ggplot(data.frame(specialty_planned_model[3]), aes(x=No_days, y=Variation))+
-  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Specialty, color = NULL), alpha = .15)+
-  geom_point(aes(shape=Specialty, col=Specialty), size=1.5)+
-  geom_line(aes(x=No_days, y=Predict, linetype=Specialty, col=Specialty), size=1)+
-  theme_classic()+
-  labs(x = "Number of days from 5th Jan 2020", y ="% change between 2020 and 2018-2019 average",
-       title="B)")+
+p_specialty_planned <- ggplot(data.frame(specialty_planned_model[3]), aes(x=Dates, y=Variation))+
   geom_hline(yintercept = 0, linetype=2)+
-  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=1, size=1)+
-  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=1, size=1)+
-  scale_color_manual("Specialty",values=c(phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red, phs_grey, phs_orange))+
-  scale_linetype_manual("Specialty", values=2:9)+
-  scale_shape_manual("Specialty", values=c(19,17,23,0,1,2, 3, 4))+
-  scale_fill_manual("Specialty",values=c(phs_trendcol2, phs_green, phs_main, phs_purple2, phs_gold, phs_red, phs_grey, phs_orange))
-
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, color = NULL), fill = phs_green, alpha = .15)+
+  geom_line(aes(x=Dates, y=Predict),col=phs_green, size=0.5)+
+  geom_vline(xintercept=lockdown_day, color="white", linetype=1, size=0.5)+
+  geom_vline(xintercept=pandemic_day, color="white", linetype=1, size=0.5)+
+  geom_point(col=phs_green, shape=15, size=1)+
+  theme_classic()+
+  labs(x = "Week ending (2020)", y ="% change between 2020 and 2018-2019 average",
+       title="B)")+
+  #annotate("text", x=average_label, y=4, label="2018-2019 average", hjust=1, size=3)+
+  geom_vline(xintercept = pandemic_day, colour=phs_blue, linetype=2, size=0.5)+
+  #annotate("text", x=pandemic_label, y=-40, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3.5)+
+  geom_vline(xintercept=lockdown_day, color=phs_purple, linetype=2, size=0.5)+
+  #annotate("text", x=lockdown_label, y=15, label="UK lockdown\n(23 Mar 2020)", color=phs_purple, hjust=0, size=3.5)+
+  facet_wrap(~Specialty)+
+  theme(legend.position = "none")
 # Plot together
 g_emerg_specialty <- ggplotGrob(p_specialty_emerg)
 g_planned_specialty <- ggplotGrob(p_specialty_planned)
@@ -1467,7 +1517,6 @@ ggplot(data=outcome_estimates_specialty_slopes, aes(x=BA_Pandemic_Lockdown, y=es
   theme(legend.position = "none")+
   labs(x="Time period", y="Estimated slope", title="B)")+
   coord_flip()
-
 
 
 ##### 5 - NHS Health Board analysis ######
