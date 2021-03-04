@@ -40,46 +40,35 @@ shape_scheme <- c(19,17,15,23,0,1,2, 3, 4)
 
 #### 1.3 - Load in data #### 
 
-# Load in A&E attendance and hospital admission data
-ae_attend <- read.csv("A&E_Attendances.csv")
-hosp_admissions <- read.csv("Hospital_Admission.csv")
+# Load in A&E attendance and add columns to 'ae_attend' to match columns in 'hosp_admissions'
+ae_attend <- read.csv("./data/original/A&E_Attendances.csv") %>%
+  mutate(Admission_type = "A&E Attendances",
+         Specialty = "All")
 
-# Add columns to 'ae_attend' to match columns in 'hosp_admissions'
-ae_attend$Admission_type <- "A&E Attendances"
-ae_attend$Specialty <- "All"
+# Load in hospital admission data
+hosp_admissions <- read.csv("./data/original/Hospital_Admissions.csv") %>%
+  filter(Admission_type != "All")
+
 
 # Merge datasets together
-all_data <- rbind(hosp_admissions, ae_attend)
-
-# Change 'Week_ending' to date
-all_data$Week_ending <- as.Date(all_data$Week_ending, "%d-%b-%y")
-
-# Rename columns
-colnames(all_data)[8] <- "Variation"
-colnames(all_data)[1] <- "Outcome"
-
-# Change outcome to character and add on 'Hospital Admissions to 'Emergency' and 'Planned'
-all_data$Outcome <- as.character(all_data$Outcome)
-all_data$Outcome[which(all_data$Outcome=="Emergency")] <- "Emergency Hospital Admissions"
-all_data$Outcome[which(all_data$Outcome=="Planned")] <- "Planned Hospital Admissions"
-
-# Find weeks before pandemic (change-point 1) and after lockdown (change-point 2)
-before_pandemic <- which(all_data$Week_ending < as.Date("2020-03-11"))
-after_lockdown <- which(all_data$Week_ending > as.Date("2020-03-23"))
-# Assign weeks to relevant time periods
-all_data$BA_Pandemic_Lockdown <- "Between"
-all_data$BA_Pandemic_Lockdown[before_pandemic] <- "Before"
-all_data$BA_Pandemic_Lockdown[after_lockdown] <- "After"
-
-# Make 'BA_Pandemic_Lockdown' a factor
-all_data <- transform(all_data, BA_Pandemic_Lockdown = factor(BA_Pandemic_Lockdown, levels= c("Before", "Between", "After")))
-
-# Calculate number of days variable
-all_data$No_days <- as.numeric(all_data$Week_ending-all_data$Week_ending[1])
+all_data <- bind_rows(hosp_admissions, ae_attend) %>%
+  mutate(Week_ending = as.Date(Week_ending, "%d-%b-%y")) %>%# Change 'Week_ending' to date
+  rename(Variation = 8) %>% # Rename Variation... to 'Variation'
+  rename(Outcome = 1) %>% # Rename Admission_type to 'Outcome'
+  mutate(Outcome = recode(Outcome, "Emergency" = "Emergency Hospital Admissions", 
+         "Planned" = "Planned Hospital Admissions")) %>% # Change outcome to character and add on 'Hospital Admissions to 'Emergency' and 'Planned'
+  mutate(BA_Pandemic_Lockdown = factor(case_when(Week_ending < as.Date("2020-03-11") ~ "Before",
+                                          Week_ending > as.Date("2020-03-23") ~ "After",
+                                          TRUE ~ "Between"),
+                                       levels = c("Before", "Between", "After"))) %>% # Assign weeks to relevant time periods of before pandemic (change-point 1) and after lockdown (change-point 2)
+  mutate(No_days = as.numeric(Week_ending - Week_ending[1]))
 
 
 #### 1.4 - Subset to Scotland level data #### 
-scotland_data <- subset(all_data, Area_name=="Scotland" & Outcome!="All" & Specialty=="All" & Category=="All")
+scotland_data <- all_data %>%
+  filter(Area_name == "Scotland", Specialty=="All", Category=="All")
+
+
 
 
 #### 1.5 - Subset to demographic data #### 
@@ -90,21 +79,22 @@ age <- c("Aged under 5", "Aged 5 to 14", "Aged 15 to 44", "Aged 45 to 64", "Aged
 simd <- c("Quintile 1 - most deprived", "Quintile 2", "Quintile 3", "Quintile 4", "Quintile 5 - least deprived")
 
 # Create individual datasets for each demographic variable
-scotland_data_sex <- subset(all_data, Area_name=="Scotland" & Outcome!="All" &
-                              Specialty=="All" & Category %in% sex)
+scotland_data_sex <- all_data %>%
+  filter(Area_name == "Scotland", Specialty=="All", Category %in% sex)
 
-scotland_data_age <- subset(all_data, Area_name=="Scotland" & Outcome!="All" &
-                              Specialty=="All" & Category %in% age)
-scotland_data_age <- transform(scotland_data_age, Category = factor(Category, levels= age))
+scotland_data_age <- all_data %>%
+  filter(Area_name == "Scotland", Specialty=="All", Category %in% age) %>%
+  mutate(Category = factor(Category, levels= age)) # Make factor
 
 
-scotland_data_simd <- subset(all_data, Area_name=="Scotland" & Outcome!="All" &
-                               Specialty=="All" & Category %in% simd)
+scotland_data_simd <- all_data %>%
+  filter(Area_name == "Scotland", Specialty=="All", Category %in% simd)
 
 
 #### 1.6 - Subset to speciality data (hospital admissions only) #### 
-scotland_data_specialty <- subset(all_data, Area_name=="Scotland" & Outcome!="All" &
-                                    Specialty!="All" & Category=="All")
+scotland_data_specialty <- all_data %>%
+  filter(Area_name == "Scotland", Specialty!="All", Category=="All")
+  
 
 ## Finding suppressed counts of counts < 5
   # Create a unique identifier for each row
@@ -137,8 +127,9 @@ scotland_data_specialty <- subset(all_data, Area_name=="Scotland" & Outcome!="Al
   
 
 #### 1.7 - Subset to NHS health board data #### 
-scotland_data_hbs <- subset(all_data, Area_type=="Health board" & Outcome!="All" &
-                              Specialty=="All" & Category=="All")
+scotland_data_hbs <- all_data %>%
+    filter(Area_type == "Health board", Specialty=="All", Category=="All")
+
 
   ## Finding suppressed counts of counts < 5
   # Create a unique identifier for each row
