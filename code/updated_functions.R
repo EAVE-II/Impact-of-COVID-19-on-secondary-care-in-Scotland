@@ -32,7 +32,7 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
   # Includes outcome subset
   if(postld == T){
     data_input <- data %>%
-      filter(BA_Pandemic_Lockdown == "After") %>%
+      filter(BA == "After") %>%
       mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
                                       TRUE ~ "After"),
                             levels = c("Before", "After"))) %>%
@@ -425,3 +425,310 @@ demographic_variation_plot_fn <- function(demographic){
   
   
 }
+
+
+
+##### Demographic model function ####
+# Fits all models for demographics by outcome
+# Input:
+# - demographic: Demographic of interest (Age, Sex, SIMD)
+# - outcome: Outcome of interest ("Planned Hospital Admissions","Emergency Hospital Admissions" or "A&E Attendances")
+# - changepoint: The change-point of interest (a date)
+# - postld: Whether or not data should be subsetted to post lockdown only (T/F)
+# - weighted: Whether or not the model should be weighted to the Count (T/F)
+
+demographic_models_fn <- function(demographic, outcome, changepoint, postld, weighted){
+  
+  if(demographic=="Sex"){
+    demographic_data <- scotland_data_sex
+  } else {if(demographic=="Age"){
+    demographic_data <- scotland_data_age
+  } else {if(demographic=="SIMD"){
+    demographic_data <- scotland_data_simd
+  }}}
+  
+  
+  if(postld == T){
+    demographic_data <- demographic_data %>%
+      filter(BA == "After") %>%
+      mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
+                                   TRUE ~ "After"),
+                         levels = c("Before", "After"))) %>%
+      mutate(No_days = as.numeric(Week_ending - Week_ending[1]))%>%
+      filter(Outcome == outcome)
+    
+    
+  } else {
+    demographic_data <- demographic_data %>%
+      mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
+                                   TRUE ~ "After"),
+                         levels = c("Before", "After"))) %>%
+      mutate(No_days = as.numeric(Week_ending - Week_ending[1]))%>%
+      filter(Outcome == outcome)
+    
+  }
+  
+  
+
+  # Results of three-way interaction
+  if(weighted == T){
+    three_way_interaction_model <- lm(Variation ~ No_days*BA*Category, data=demographic_data_outcome)
+    # Alternative models
+    alternative_model_0 <- lm(Variation ~ No_days*BA, data=demographic_data_outcome, weights = Count)
+    alternative_model_1 <- lm(Variation ~ No_days*BA+Category, data=demographic_data_outcome, weights = Count)
+    alternative_model_2 <- lm(Variation ~ No_days*BA+Category*No_days, data=demographic_data_outcome, weights = Count)
+    alternative_model_3 <- lm(Variation ~ No_days*BA+Category*BA, data=demographic_data_outcome, weights = Count)
+    alternative_model_4 <- lm(Variation ~ No_days*BA+Category*No_days+Category*BA, data=demographic_data_outcome, weights = Count)
+    
+  } else {
+    three_way_interaction_model <- lm(Variation ~ No_days*BA*Category, data=demographic_data_outcome)
+    # Alternative models
+    alternative_model_0 <- lm(Variation ~ No_days*BA, data=demographic_data_outcome)
+    alternative_model_1 <- lm(Variation ~ No_days*BA+Category, data=demographic_data_outcome)
+    alternative_model_2 <- lm(Variation ~ No_days*BA+Category*No_days, data=demographic_data_outcome)
+    alternative_model_3 <- lm(Variation ~ No_days*BA+Category*BA, data=demographic_data_outcome)
+    alternative_model_4 <- lm(Variation ~ No_days*BA+Category*No_days+Category*BA, data=demographic_data_outcome)
+    
+  }
+  three_way_interaction_model_anova <- anova(three_way_interaction_model)
+  
+  
+  alternative_models_aic <- AIC(alternative_model_0,alternative_model_1, alternative_model_2, alternative_model_3, alternative_model_4)
+  alternative_models_bic <- BIC(alternative_model_0,alternative_model_1, alternative_model_2, alternative_model_3, alternative_model_4)
+  
+  return(list(three_way_interaction_model_anova, alternative_models_aic, alternative_models_bic))
+}
+
+
+
+###### Demographic alternative model function ####
+# Extract key statistics from chosen demographic model by outcome
+
+demographic_alternative_model_fn <- function(demographic, outcome, model){
+  
+  # Getting data
+  if(demographic=="Sex"){
+    demographic_data <- scotland_data_sex
+    categories <- sex
+  } else {if(demographic=="Age"){
+    demographic_data <- scotland_data_age
+    categories <- age
+  } else {if(demographic=="SIMD"){
+    demographic_data <- scotland_data_simd
+    categories <- simd
+  }}}
+  
+  # Subset
+  demographic_data_outcome <- subset(demographic_data, Outcome==outcome)
+  
+  # [1] ANOVA
+  if(model==1){
+    alternative_model <- lm(Variation ~ No_days*BA+Category, data=demographic_data_outcome)
+  } else {
+    if(model==2){
+      alternative_model <- lm(Variation ~ No_days*BA+Category*No_days, data=demographic_data_outcome)
+    } else {
+      if(model==3){
+        alternative_model <- lm(Variation ~ No_days*BA+Category*BA, data=demographic_data_outcome)
+      } else {
+        if(model==4){
+          alternative_model <- lm(Variation ~ No_days*BA+Category*No_days+Category*BA, data=demographic_data_outcome)
+          
+        }
+      }
+    }
+  }
+  
+  alternative_model_anova <- anova(alternative_model)
+  
+  
+  # [2] Estimates
+  # Find number of categories
+  n <- length(categories)
+  
+  # Create skeleton dataset
+  alternative_model_estimates <- data.frame(matrix(ncol=7, nrow=3*2*n))
+  colnames(alternative_model_estimates) <- c("Outcome","Category","BA", "Coeff_type", "est", "lwr", "upr")
+  alternative_model_estimates$Outcome <- rep(outcome, times=6*n)
+  alternative_model_estimates$Category <- rep(categories, each=6)
+  alternative_model_estimates$BA <- rep(rep(c("Before", "Between", "After"), each=2), times=n)
+  alternative_model_estimates$Coeff_type <- rep(c("Intercept", "Slope"), times=3*n)
+  
+  time_periods <- c("Before", "Between", "After")
+  # Carry out with different baseline change-points
+  for(i in 1:3){
+    demographic_data_outcome <- within(demographic_data_outcome, BA <- relevel(BA, ref= time_periods[i]))
+    
+    for(j in 1:n){
+      
+      demographic_data_outcome <- within(demographic_data_outcome, Category <- relevel(Category, ref= categories[j]))
+      
+      
+      # Chosen model
+      if(model==1){
+        alternative_model <- lm(Variation ~ No_days*BA+Category, data=demographic_data_outcome)
+      } else {
+        if(model==2){
+          alternative_model <- lm(Variation ~ No_days*BA+Category*No_days, data=demographic_data_outcome)
+        } else {
+          if(model==3){
+            alternative_model <- lm(Variation ~ No_days*BA+Category*BA, data=demographic_data_outcome)
+          } else {
+            if(model==4){
+              alternative_model <- lm(Variation ~ No_days*BA+Category*No_days+Category*BA, data=demographic_data_outcome)
+              
+            }
+          }
+        }
+      }
+      
+      
+      
+      
+      
+      alternative_coefs <- alternative_model$coefficients
+      alternative_coefs_cis <- confint(alternative_model)
+      
+      alternative_model_estimates$est[which(alternative_model_estimates$BA==time_periods[i]&
+                                              alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs[1:2],3)
+      
+      alternative_model_estimates$lwr[which(alternative_model_estimates$BA==time_periods[i]&
+                                              alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs_cis[1:2,1],3)
+      
+      alternative_model_estimates$upr[which(alternative_model_estimates$BA==time_periods[i]&
+                                              alternative_model_estimates$Category==categories[j])] <- round(alternative_coefs_cis[1:2,2],3)
+      
+      
+      
+      
+      
+    }
+    
+    
+    
+  }
+  
+  # [3] Fitted lines and 95% CI
+  
+  # To create segmented fitted lines we must fit the model to all days in time-periods and stop at each of the change-points
+  
+  # Create a vector for each segmented time-period by day 
+  change_pts <- as.Date(c("2020-01-05", "2020-03-11", "2020-03-11","2020-03-23","2020-03-23","2020-06-28"))
+  # Before - Jan 05 to Mar 11
+  before_days <- as.Date(change_pts[1]:change_pts[2], origin = "1970-01-01")
+  # Between - Mar 11 to Mar 23
+  between_days <- as.Date(change_pts[3]:change_pts[4], origin = "1970-01-01")
+  # After - Mar 23 to 28 Jun
+  after_days <- as.Date(change_pts[5]:change_pts[6], origin = "1970-01-01")
+  
+  # Vector of all days and timeperiods
+  all_dates <- c(before_days, between_days, after_days)
+  all_no_days <- as.numeric(c(c(before_days, between_days, after_days)-as.Date("2020-01-05")))
+  all_time_periods <- c(rep("Before", times=length(before_days)),
+                        rep("Between", times=length(between_days)),
+                        rep("After", times=length(after_days)))
+  all_time_periods_no <- c(rep(1, times=length(before_days)),
+                           rep(2, times=length(between_days)),
+                           rep(3, times=length(after_days)))
+  
+  # Calculate the number of possible time points 
+  m <- length(before_days)+length(between_days)+length(after_days)
+  
+  # Next create a dataset with all time points in time-periods
+  alternative_model_prediction <- data.frame(matrix(ncol=4, nrow=m*n))
+  colnames(alternative_model_prediction) <- c("BA", "No_days", "Outcome", "Category")
+  
+  alternative_model_prediction$Outcome <- rep(outcome, times=m*n)
+  alternative_model_prediction$Dates <- rep(all_dates, times=n)
+  alternative_model_prediction$No_days <- rep(all_no_days, times=n)
+  alternative_model_prediction$BA <- rep(all_time_periods, times=n)
+  alternative_model_prediction$Time_period_no <- rep(all_time_periods_no, times=n)
+  alternative_model_prediction$Category <- rep(categories, each=m)
+  
+  alternative_model_prediction <- transform(alternative_model_prediction, Category = factor(Category, levels= categories))
+  
+  # Link variation raw datato prediction dataset
+  demographic_data_outcome <- demographic_data_outcome %>%
+    mutate(Time_period_no=recode(BA, "Before"=1, "Between"=2, "After"=3))
+  
+  demographic_data_outcome$Date_BA_Outcome_Category <- paste(demographic_data_outcome$Week_ending, demographic_data_outcome$Time_period_no, 
+                                                             demographic_data_outcome$Outcome, demographic_data_outcome$Category)
+  alternative_model_prediction$Date_BA_Outcome_Category <- paste(alternative_model_prediction$Date, alternative_model_prediction$Time_period_no, 
+                                                                 alternative_model_prediction$Outcome, alternative_model_prediction$Category)
+  
+  alternative_model_prediction <- merge(x=alternative_model_prediction, y=demographic_data_outcome[, c("Date_BA_Outcome_Category", "Variation")], by="Date_BA_Outcome_Category", all.x=T)
+  
+  
+  # Use the model to predict the outcome with 95% CI
+  predictions <- predict(alternative_model, newdata = alternative_model_prediction, interval = "confidence")
+  alternative_model_prediction$Predict <- predictions[,1]
+  alternative_model_prediction$Lwr <- predictions[,2]
+  alternative_model_prediction$Upr <- predictions[,3]
+  
+  
+  
+  
+  # [4] Model diagnostics
+  # Residuals
+  alternative_residuals <- alternative_model$residuals
+  names(alternative_residuals) <- demographic_data_outcome$Category
+  
+  #Fitted values
+  alternative_fitted_values <- alternative_model$fitted.values
+  names(alternative_fitted_values) <- demographic_data_outcome$BA
+  
+  par(mfrow=c(1,3))
+  # Histograms
+  hist(alternative_residuals, breaks=50, main=" ", xlab="Residuals")
+  
+  # QQ Plot
+  qqnorm(alternative_residuals, main=" ")
+  qqline(alternative_residuals)
+  
+  # Residuals vs fitted
+  plot(alternative_fitted_values, alternative_residuals, xlab="Fitted values", ylab="Residuals")
+  abline(h=0,lty=2)
+  
+  # ACF
+  if(demographic=="Sex"){
+    par(mfrow=c(1,2))
+  } else {if(demographic=="Age"){
+    par(mfrow=c(2,4))
+  } else {if(demographic=="SIMD"){
+    par(mfrow=c(1,5))
+  }}}
+  
+  for(k in 1:length(categories)){
+    alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
+    
+    # ACF
+    acf(alternative_residuals_category, main=categories[k])
+  }
+  
+  
+  # PACF
+  if(demographic=="Sex"){
+    par(mfrow=c(1,2))
+  } else {if(demographic=="Age"){
+    par(mfrow=c(2,4))
+  } else {if(demographic=="SIMD"){
+    par(mfrow=c(1,5))
+  }}}
+  
+  for(k in 1:length(categories)){
+    alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
+    
+    # PACF
+    pacf(alternative_residuals_category, main=categories[k])
+  }
+  
+  
+  
+  # Output
+  return(list(alternative_model_anova, alternative_model_estimates, alternative_model_prediction))
+  
+  
+  
+}
+
+
