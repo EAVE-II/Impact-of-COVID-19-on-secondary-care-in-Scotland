@@ -61,7 +61,7 @@ all_data <- bind_rows(hosp_admissions, ae_attend) %>%
   rename(Outcome = 1) %>% # Rename Admission_type to 'Outcome'
   mutate(Outcome = recode(Outcome, "Emergency" = "Emergency Hospital Admissions", 
                           "Planned" = "Planned Hospital Admissions")) %>% # Change outcome to character and add on 'Hospital Admissions to 'Emergency' and 'Planned'
-  mutate(BA_Pandemic_Lockdown = factor(case_when(Week_ending < as.Date("2020-03-11") ~ "Before",
+  mutate(BA = factor(case_when(Week_ending < as.Date("2020-03-11") ~ "Before",
                                                  Week_ending > as.Date("2020-03-23") ~ "After",
                                                  TRUE ~ "Between"),
                                        levels = c("Before", "Between", "After"))) %>% # Assign weeks to relevant time periods of before pandemic (change-point 1) and after lockdown (change-point 2)
@@ -232,134 +232,22 @@ plot_grid(p_count, p_diff, labels = "AUTO", ncol=1, align = "v")
 # Look at post lockdown only
 
 ##### 3.1 - Total outcomes ####
-scotland_data_postld <- scotland_data %>%
-  filter(BA_Pandemic_Lockdown == "After") %>%
-  mutate(BA_P3 = factor(case_when(Week_ending < as.Date("2020-09-22") ~ "Before",
-                                  TRUE ~ "After"),
-                        levels = c("Before", "After"))) %>%
-  mutate(No_days = as.numeric(Week_ending - Week_ending[1]))
+
+# Use 'baseline_model_fn' from 'updated_functions.R' to get information on all outcomes
+# Obtain predictions and estimates
+z_1 <- baseline_model_fn(data = scotland_data, outcome = "A&E Attendances",
+                  postld = T, changepoint = "2020-09-22", weighted = T, diag_plots = F)
+
+z_2 <- baseline_model_fn(data = scotland_data, outcome = "Emergency Hospital Admissions",
+                  postld = T, changepoint = "2020-09-22", weighted = T, diag_plots = F)
+
+z_3 <- baseline_model_fn(data = scotland_data, outcome = "Planned Hospital Admissions",
+                  postld = T, changepoint = "2020-09-22", weighted = T, diag_plots = F)
 
 
-outcome <- "Planned Hospital Admissions"
-outcome <- "Emergency Hospital Admissions"
-outcome <- "A&E Attendances"
-
-
-# Function
-
-update_baseline_model_fn <- function(outcome, model){
+## All predictions
+outcome_predictions <- bind_rows(z_1[[1]], z_2[[1]], z_3[[1]])
   
-  # Subset 
-  scotland_data_postld_subset <- subset(scotland_data_postld, Outcome==outcome)
-  
-  # Model 1 - Interaction between No. days from lockdown and before/after eat out to help out
-  model1 <- lm(Variation ~ No_days*BA_EO2HO, data=scotland_data_postld_subset)
-  #summary(model1)
-  #anova(model1, test="LRT")
-  
-  # Model 2 - Model 1 but weighted to the count
-  model2 <- lm(Variation ~ No_days*BA_EO2HO, data=scotland_data_postld_subset, weights = Count)
-  #summary(model2)
-  #anova(model2, test="LRT")
-  
-  # Baseline model
-  if(model == "model1"){
-    baseline_model <- model1
-    
-  } else 
-    if(model == "model2"){
-      baseline_model <- model2
-    }
-  
-
-
-# Residuals
-baseline_residuals <- baseline_model$residuals
-names(baseline_residuals) <- scotland_data_postld_subset$BA_Pandemic_Lockdown
-
-#Fitted values
-baseline_fitted_values <- baseline_model$fitted.values
-names(baseline_fitted_values) <- scotland_data_postld_subset$BA_Pandemic_Lockdown
-
-par(mfrow=c(1,3))
-# Histograms
-hist(baseline_residuals, breaks=50, main=" ", xlab="Residuals")
-
-# QQ Plot
-qqnorm(baseline_residuals, main=" ")
-qqline(baseline_residuals)
-
-# Residuals vs fitted
-plot(baseline_fitted_values, baseline_residuals, xlab="Fitted values", ylab="Residuals")
-abline(h=0,lty=2)
-
-
-par(mfrow=c(1,2))
-# ACF
-acf(baseline_residuals, main=" ")
-# PACF
-pacf(baseline_residuals, main=" ")
-
-
-# Predictions
-change_pts <- as.Date(c("2020-03-23","2020-08-03","2020-08-03","2021-01-24"))
-# Before - Mar 23 to Aug 3
-before_days <- as.Date(change_pts[1]:change_pts[2], origin = "1970-01-01")
-# After - Aug 3 to Jan 23
-after_days <- as.Date(change_pts[3]:change_pts[4], origin = "1970-01-01")
-
-# Calculate the number of possible time points 
-n <- length(before_days)+length(after_days)
-
-# Next create a dataset with all time points in time-periods
-baseline_model_prediction <- data.frame(matrix(ncol=3, nrow=n))
-colnames(baseline_model_prediction) <- c("BA_EO2HO", "No_days", "Outcome")
-
-baseline_model_prediction$Outcome <- rep(outcome, times=n)
-baseline_model_prediction$Date <- c(before_days, after_days)
-baseline_model_prediction$No_days <- as.numeric(c(c(before_days, after_days)-as.Date("2020-03-23")))
-baseline_model_prediction$BA_EO2HO <- c(rep("Before", times=length(before_days)),
-                                                    rep("After", times=length(after_days)))
-
-
-scotland_data_postld_subset <- scotland_data_postld_subset %>%
-  mutate(Date_BA_Outcome = paste0(Week_ending, BA_EO2HO, Outcome))
-
-baseline_model_prediction <- baseline_model_prediction %>%
-  mutate(Date_BA_Outcome = paste0(Date, BA_EO2HO, Outcome))
-
-
-baseline_model_prediction <- baseline_model_prediction %>%
-  left_join(scotland_data_postld_subset %>%
-              select(Date_BA_Outcome, Variation, Count))
-
-
-# Use the model to predict the outcome with 95% CI
-if(model == "model1"){
-  predictions <- predict(baseline_model, newdata = baseline_model_prediction, interval = "confidence")
-  
-} else 
-  if(model == "model2"){
-    predictions <- predict(baseline_model, newdata = baseline_model_prediction, interval = "confidence", weights = baseline_model_prediction$Count)
-    
-  }
-
-predictions <- predict(baseline_model, newdata = baseline_model_prediction, interval = "confidence", weights = baseline_model_prediction$Count)
-baseline_model_prediction$Predict <- predictions[,1]
-baseline_model_prediction$Lwr <- predictions[,2]
-baseline_model_prediction$Upr <- predictions[,3]
-
-baseline_model_prediction
-}
-
-
-
-
-# All predictions
-outcome_predictions <- rbind(data.frame(update_baseline_model_fn("A&E Attendances", "model1")),
-                             data.frame(update_baseline_model_fn("Emergency Hospital Admissions", "model1")),
-                             data.frame(update_baseline_model_fn("Planned Hospital Admissions", "model1")))
-
 # Plot
 ggplot(outcome_predictions)+
   # Points
@@ -374,73 +262,77 @@ ggplot(outcome_predictions)+
   geom_hline(yintercept = 0, linetype=2)+
   annotate("text", x=as.Date("2021-01-01"), y=2, label="2018-2019 average", hjust=1, size=3) +
   # Eat out to help out
-  geom_vline(xintercept=as.Date("2020-08-03"), color=phs_purple, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-08-07"), y=-50, label="Eat out to help out introduced\n(3 Aug 2020)", color=phs_purple, hjust=0, size=3, fontface =2)+
+  geom_vline(xintercept=as.Date("2020-09-22"), color=phs_purple, linetype=1, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=-50, label="Phase 3 restrictions announced\n22nd Sep 2020", color=phs_purple, hjust=0, size=3, fontface =2)+
   # Colours of lines and points
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_trendcol2, phs_green))+
-  scale_fill_manual("Outcome",values=c(phs_trendcol1, phs_trendcol2, phs_green))+
+  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
+  scale_fill_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
   #scale_linetype_manual("Outcome", values=2:4) +
   theme(legend.position = "bottom") +
   scale_x_date(date_breaks = "months" , date_labels = "%b")
 
 
+## Estimates
+outcome_estimates <- bind_rows(z_1[[2]], z_2[[2]], z_3[[2]])
 
-#### Estimates
-outcome <- "Planned Hospital Admissions"
-outcome <- "Emergency Hospital Admissions"
-outcome <- "A&E Attendances"
+# Getting labels - estimate (95% CI: lwr, upr)
+outcome_estimates_labels <- outcome_estimates
+outcome_estimates_labels$Label <- paste(round(outcome_estimates$est,1), " (95% CI: ",
+                                        round(outcome_estimates$lwr,1), " to ",
+                                        round(outcome_estimates$upr,1), ")", sep="")
 
-
-  # Subset 
-  scotland_data_postld_subset <- subset(scotland_data_postld, Outcome==outcome)
-  
-
-  # Model 2 - Model 1 but weighted to the count
-  baseline_model <- lm(Variation ~ No_days*BA_EO2HO, data=scotland_data_postld_subset, weights = Count)
-  
-  summary(baseline_model)
-
-
-baseline_model_estimates <- data.frame(matrix(ncol=6, nrow=2*2))
-colnames(baseline_model_estimates) <- c("Outcome","BA_EO2HO", "Coeff_type", "est", "lwr", "upr")
-baseline_model_estimates$Outcome <- rep(outcome, times=4)
-baseline_model_estimates$BA_EO2HO <- rep(c("Before", "After"), times=2)
-baseline_model_estimates$Coeff_type <- rep(c("Intercept", "Slope"), each=2)
-
-
-# Define the three time-periods
-time_periods <- c("Before", "After")
-
-# Fit model each time for each time-period to get estimates for slopes and intercepts
-for(i in 1:2){
-  # Redefine baseline level for each loop (once for each time period)
-  scotland_data_postld_subset <- within(scotland_data_postld_subset, BA_EO2HO <- relevel(BA_EO2HO, ref= time_periods[i]))
-  
-  # Refit baseline model
-  baseline_model <- lm(Variation ~ No_days*BA_EO2HO, data=scotland_data_postld_subset)
-  
-  # Capture estimates and their 95% CI
-  baseline_coefs <- baseline_model$coefficients
-  baseline_coefs_cis <- confint(baseline_model)
-  
-  # Populate the estimate table
-  baseline_model_estimates$est[which(baseline_model_estimates$BA_EO2HO==time_periods[i])] <- round(baseline_coefs[1:2],3)
-  
-  baseline_model_estimates$lwr[which(baseline_model_estimates$BA_EO2HO==time_periods[i])] <- round(baseline_coefs_cis[1:2,1],3)
-  
-  baseline_model_estimates$upr[which(baseline_model_estimates$BA_EO2HO==time_periods[i])] <- round(baseline_coefs_cis[1:2,2],3)
-  
-  
-  
-}
-
-baseline_model_estimates
+# Plot estimates with 95% CIs
+# Intercept only
+outcome_estimates_int <- subset(outcome_estimates, Coeff_type=="Intercept")
+outcome_estimates_labels_int <- subset(outcome_estimates_labels, Coeff_type=="Intercept")
+p_int <- ggplot(data=outcome_estimates_int, aes(x=BA, y=est, col=Outcome))+
+  geom_hline(yintercept = 0, linetype=2)+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr), width=0.5)+
+  facet_grid(~Outcome)+
+  theme_bw()+
+  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
+  theme(legend.position = "none")+
+  labs(x="Time period", y="Estimated intercept", title="A)")+
+  coord_flip()+
+  ylim(c(min(outcome_estimates_int$est)-25, max(outcome_estimates_int$est)+25)) +
+  geom_text(data=outcome_estimates_labels_int, label=outcome_estimates_labels_int$Label, 
+            size=3,fontface = "bold", position = position_nudge(x = -0.25))
 
 
-#### 3 way interactions ####
+outcome_estimates_slopes <- subset(outcome_estimates, Coeff_type=="Slope")
+outcome_estimates_labels_slopes <- subset(outcome_estimates_labels, Coeff_type=="Slope")
+p_slope <- ggplot(data=outcome_estimates_slopes, aes(x=BA, y=est, col=Outcome))+
+  geom_hline(yintercept = 0, linetype=2)+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr), width=0.25)+
+  facet_grid(~Outcome)+
+  theme_bw()+
+  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
+  theme(legend.position = "none")+
+  labs(x="Time period", y="Estimated slopes", title="B)")+
+  coord_flip()+
+  ylim(c(min(outcome_estimates_slopes$est)-0.2, max(outcome_estimates_slopes$est)+0.2)) +
+  geom_text(data=outcome_estimates_labels_slopes, label=outcome_estimates_labels_slopes$Label,
+            size=3, fontface = "bold", position = position_nudge(x = -0.25))
 
-scotland_data_postld <- within(scotland_data_postld, BA_EO2HO <- relevel(BA_EO2HO, ref= "Before"))
-baseline_model3 <- lm(Variation ~ Outcome*No_days*BA_EO2HO, data=scotland_data_postld, weights = Count)
+
+gridExtra::grid.arrange(p_int, p_slope)
+
+
+#### 3.2 - Total outcomes - 3 way interaction ####
+# This compares across the three outcomes
+changepoint <- "2020-09-22"
+
+scotland_data_postld <- scotland_data %>%
+  filter(BA_Pandemic_Lockdown == "After") %>%
+  mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
+                               TRUE ~ "After"),
+                     levels = c("Before", "After"))) %>%
+  mutate(No_days = as.numeric(Week_ending - Week_ending[1]))
+
+
+baseline_model3 <- lm(Variation ~ Outcome*No_days*BA, data=scotland_data_postld, weights = Count)
 summary(baseline_model3)
 
 baseline_model3 <- lm(Variation ~ Outcome*No_days*BA_EO2HO, data=scotland_data_postld)
