@@ -792,7 +792,7 @@ summary(baseline_model3)
 anova(baseline_model3)
 
 
-#### 3.3 - Specialities modelling ####
+#### 3.3 - Demographic modelling ####
 
 # demographic_models_fn from updated_functions
 # Input:
@@ -801,9 +801,19 @@ anova(baseline_model3)
 # - changepoint: The change-point of interest (a date)
 # - postld: Whether or not data should be subsetted to post lockdown only (T/F)
 # - weighted: Whether or not the model should be weighted to the Count (T/F)
+
 # Output:
-# 1- 
-# - AIC and BIC  of all model combinations of three and two way interactions
+# 1- Summary of three way interaction (i.e. No_days*BA*Category)
+# 2 - AIC of all model combinations
+# 3 - BIC of all model combinations#
+
+# Combinations:
+# 0 - No_days*BA
+# 1 - No_days*BA+Category
+# 2 - No_days*BA+Category*No_days
+# 3 - No_days*BA+Category*BA
+# 4 - No_days*BA+Category*No_days+Category*BA
+
 demographic_models_fn("Sex", "A&E Attendances", "2020-09-22", T, T)
 demographic_models_fn("Sex", "Emergency Hospital Admissions", "2020-09-22", T, T)
 demographic_models_fn("Sex", "Planned Hospital Admissions", "2020-09-22", T, T)
