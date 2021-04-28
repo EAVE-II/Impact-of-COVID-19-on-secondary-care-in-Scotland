@@ -18,12 +18,7 @@
 # - weighted: Whether or not the model should be weighted to the Count (T/F)
 # - diag_plots: Whether or not diagnostic plots should be outputted (T/F)
 
-data <- scotland_data
-outcome <- "Planned Hospital Admissions"
-postld <- T
-changepoint <- "2020-09-22"
-weighted <- T
-diag_plots <- F
+
 
 baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag_plots){
   
@@ -436,11 +431,6 @@ demographic_variation_plot_fn <- function(demographic){
 # - changepoint: The change-point of interest (a date)
 # - postld: Whether or not data should be subsetted to post lockdown only (T/F)
 # - weighted: Whether or not the model should be weighted to the Count (T/F)
-demographic = "Sex"
-outcome = "A&E Attendances"
-changepoint = "2020-09-22"
-postld= T
-weighted =T
 
 demographic_models_fn <- function(demographic, outcome, changepoint, postld, weighted){
   
