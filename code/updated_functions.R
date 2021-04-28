@@ -32,7 +32,7 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
   # Includes outcome subset
   if(postld == T){
     data_input <- data %>%
-      filter(BA == "After") %>%
+      filter(BA_Pandemic_Lockdown== "After") %>%
       mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
                                       TRUE ~ "After"),
                             levels = c("Before", "After"))) %>%
@@ -436,6 +436,11 @@ demographic_variation_plot_fn <- function(demographic){
 # - changepoint: The change-point of interest (a date)
 # - postld: Whether or not data should be subsetted to post lockdown only (T/F)
 # - weighted: Whether or not the model should be weighted to the Count (T/F)
+demographic = "Sex"
+outcome = "A&E Attendances"
+changepoint = "2020-09-22"
+postld= T
+weighted =T
 
 demographic_models_fn <- function(demographic, outcome, changepoint, postld, weighted){
   
@@ -449,8 +454,8 @@ demographic_models_fn <- function(demographic, outcome, changepoint, postld, wei
   
   
   if(postld == T){
-    demographic_data <- demographic_data %>%
-      filter(BA == "After") %>%
+    demographic_data_outcome <- demographic_data %>%
+      filter(BA_Pandemic_Lockdown== "After") %>%
       mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
                                    TRUE ~ "After"),
                          levels = c("Before", "After"))) %>%
@@ -459,7 +464,7 @@ demographic_models_fn <- function(demographic, outcome, changepoint, postld, wei
     
     
   } else {
-    demographic_data <- demographic_data %>%
+    demographic_data_outcome <- demographic_data %>%
       mutate(BA = factor(case_when(Week_ending < as.Date(changepoint) ~ "Before",
                                    TRUE ~ "After"),
                          levels = c("Before", "After"))) %>%
