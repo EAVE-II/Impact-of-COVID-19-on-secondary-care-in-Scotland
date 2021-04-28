@@ -62,7 +62,7 @@ all_data <- bind_rows(hosp_admissions, ae_attend) %>%
   rename(Outcome = 1) %>% # Rename Admission_type to 'Outcome'
   mutate(Outcome = recode(Outcome, "Emergency" = "Emergency Hospital Admissions", 
                           "Planned" = "Planned Hospital Admissions")) %>% # Change outcome to character and add on 'Hospital Admissions to 'Emergency' and 'Planned'
-  mutate(BA = factor(case_when(Week_ending < as.Date("2020-03-11") ~ "Before",
+  mutate(BA_Pandemic_Lockdown  = factor(case_when(Week_ending < as.Date("2020-03-11") ~ "Before",
                                                  Week_ending > as.Date("2020-03-23") ~ "After",
                                                  TRUE ~ "Between"),
                                        levels = c("Before", "Between", "After"))) %>% # Assign weeks to relevant time periods of before pandemic (change-point 1) and after lockdown (change-point 2)
