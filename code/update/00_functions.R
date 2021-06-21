@@ -78,6 +78,16 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
     
   }
   
+  ## Difference estimates
+  baseline_diff_ests <- bind_cols(coef_name = names(baseline_model$coefficients),
+                                  est=baseline_model$coefficients,
+                                  confint(baseline_model)) %>%
+    rename("lwr"=3, "upr"=4) %>%
+    mutate(Outcome = outcome) %>%
+    filter(coef_name %in% c("BAAfter", "No_days:BAAfter")) %>%
+    mutate(coef_name = ifelse(coef_name=="BAAfter", "Step change", "Slope change"))
+  
+  
   ## Model goodness of fit
   baseline_mod_good <- tibble(AIC = AIC(baseline_model),
                               BIC = BIC(baseline_model),
@@ -256,9 +266,9 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
   
   if(diag_plots == T){
     return(list(gridExtra::grid.arrange(p1, p2, p3, ncol=3), 
-                baseline_model_prediction, summary(baseline_model), baseline_model_estimates, baseline_mod_good))
+                baseline_model_prediction, baseline_diff_ests, baseline_model_estimates, baseline_mod_good))
   } else{
-    return(list(baseline_model_prediction, summary(baseline_model), baseline_model_estimates, baseline_mod_good))
+    return(list(baseline_model_prediction, baseline_diff_ests, baseline_model_estimates, baseline_mod_good))
     
   }
 }
