@@ -64,7 +64,7 @@ p_diff <- scotland_data %>%
   theme(legend.position = "bottom") +
   scale_x_date(date_breaks = "months" , date_labels = "%b")+
   geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
-  facet_wrap(~Outcome, scales = "free") +
+  facet_rep_grid(~Outcome) +
   scale_y_continuous(labels = function(x) paste0(x, "%"))
 
 
