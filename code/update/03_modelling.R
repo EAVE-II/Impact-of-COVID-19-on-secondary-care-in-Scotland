@@ -52,30 +52,40 @@ z_3[[2]]
 outcome_predictions <- bind_rows(z_1[[1]], z_2[[1]], z_3[[1]])
 
 # Plot
-ggplot(outcome_predictions)+
-  # Points
-  geom_point(aes(x=Date, y=Variation, color=Outcome, shape=Outcome), size=2)+
+p_itsa <- ggplot(outcome_predictions)+
   # Fitted lines and 95% CI
-  geom_line(aes(x=Date, y=Predict, color=Outcome), size=0.75)+
-  geom_ribbon(aes(x=Date, ymin =Lwr, ymax =Upr, fill = Outcome, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict), size=1, col=eave_blue)+
+  geom_ribbon(aes(x=Date, ymin =Lwr, ymax =Upr, fill = Outcome), alpha = .15, fill=eave_blue)+
   theme_classic()+
   # Labels
   labs(x = "Week ending (2020-2021)", y ="% change from 2018-2019 average") +
   # 2018-2019 average
   geom_hline(yintercept = 0, linetype=2)+
-  annotate("text", x=as.Date("2021-03-01"), y=2, label="2018-2019 average", hjust=1, size=3) +
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  annotate("text", x=as.Date("2021-01-04"), y=2, label="2021", hjust=0, size=3) +
+  # White background for change-point
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
   # Change-point 1
-  geom_vline(xintercept = as.Date("2020-09-22"), colour=phs_purple, linetype=2, size=1)+
-  annotate("text", x=as.Date("2020-09-25"), y=10, label="Phase 3 restrictions announced\n(22 Sep 2020)", color=phs_purple, hjust=0, size=3.5, fontface =2)+
-  # Boxing day lockdown - 26 Dec
-  #geom_vline(xintercept = as.Date("2020-12-26"), colour=phs_red, linetype=1, size=1)+
-  #annotate("text", x=as.Date("2020-12-29"), y=25, label="Nationwide lockdown\n(26 Dec 2020)", color=phs_red, hjust=0, size=3, fontface =2)+
-  # Colours of lines and points
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
-  scale_fill_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
-  #scale_linetype_manual("Outcome", values=2:4) +
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  # Points
+  geom_point(aes(x=Date, y=Variation), size=2, col=eave_blue)+
   theme(legend.position = "bottom") +
-  scale_x_date(date_breaks = "months" , date_labels = "%b")
+  #theme(panel.border=element_blank(), axis.line=element_line())
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_rep_grid(~Outcome) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"))
+
+p_itsa
+
+
+# Save
+png(width=1100, height=400,filename = "./outputs/ITSA.png")
+p_itsa
+
+dev.off()
+
 
 
 ## Estimates
