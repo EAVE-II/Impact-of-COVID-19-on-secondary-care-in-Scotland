@@ -25,60 +25,23 @@ p_count <- bind_rows(scotland_data %>%
                        rename(Count = Average_2018_2019) %>%
                        mutate(Group = "2018-19 average")) %>%
   ggplot() +
-  # UK Lockdown - 23 Mar 2020
-  annotate("rect",xmin=as.Date("2020-03-23"), xmax=as.Date("2020-05-29"),
-           ymin=0, ymax=30000,fill=phs_red, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-03-23"), colour=phs_red, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-03-27"), y=31000, label="UK lockdown\n(23 Mar 2020)", color=phs_red, hjust=0, size=3, fontface =2)+
-  # Phase 1 Introduced - 29 May 2020
-  annotate("rect",xmin=as.Date("2020-05-29"), xmax=as.Date("2020-06-19"),
-           ymin=0, ymax=30000, fill="orange", alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-05-29"), colour="orange", alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-06-01"), y=31000, label="Phase 1 announced\n(29 May 2020)", color="orange", hjust=0, size=3, fontface =2)+
-  # Phase 2 introduced - 19 Jun 2020
-  annotate("rect",xmin=as.Date("2020-06-19"), xmax=as.Date("2020-07-09"),
-           ymin=0, ymax=30000, fill="gold", alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-06-19"), colour="gold", alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-06-21"), y=33000, label="Phase 2 announced\n(19 Jun 2020)", color="gold2", hjust=0, size=3, fontface =2)+
-  # Phase 3 introduced - 9th July
-  annotate("rect",xmin=as.Date("2020-07-09"), xmax=as.Date("2020-09-22"),
-           ymin=0, ymax=30000, fill=phs_green, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-07-09"), colour=phs_green, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-07-11"), y=35000, label="Phase 3 announced\n(09 Jul 2020)", color=phs_green, hjust=0, size=3, fontface =2)+
-  # Phase 3 restrictions announced - 22 Sept
-  annotate("rect",xmin=as.Date("2020-09-22"), xmax=as.Date("2020-11-02"),
-           ymin=0, ymax=30000, fill="gold", alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-09-22"), colour="gold", alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-09-25"), y=31000, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="gold", hjust=0, size=3, fontface =2)+
-  # Local authority levels allocated - 2 Nov
-  annotate("rect",xmin=as.Date("2020-11-02"), xmax=as.Date("2020-12-26"),
-           ymin=0, ymax=30000, fill=phs_purple2, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-11-02"), colour=phs_purple2, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-11-05"), y=33000, label="Local authority levels allocated\n(2 Nov 2020)", color=phs_purple2, hjust=0, size=3, fontface =2)+
-  # Boxing day lockdown - 26 Dec
-  annotate("rect",xmin=as.Date("2020-12-26"), xmax=max(scotland_data$Week_ending),
-           ymin=0, ymax=30000,fill=phs_red, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-12-26"), colour=phs_red, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-12-29"), y=35000, label="Nationwide lockdown\n(26 Dec 2020)", color=phs_red, hjust=0, size=3, fontface =2)+
   # Lines
-  geom_line(aes(x=Week_ending, y=Count, color=Outcome, linetype=Group), size=1)+
-  # Points
-  geom_point(aes(x=Week_ending, y=Count, color=Outcome, shape=Outcome), size=2)+
-  theme_classic()+
+  geom_line(aes(x=Week_ending, y=Count, linetype=Group ,col=Group), size=0.5)+
   # Labels
   labs(x = "Week ending", y ="Count") +
-  # WHO announcement
-  #geom_vline(xintercept = as.Date("2020-03-11"), colour=phs_blue, linetype=1, size=1)+
-  #annotate("text", x=as.Date("2020-03-07"), y=31000, label="WHO announces pandemic\n(11 Mar 2020)", color=phs_blue, hjust=1, size=3, fontface =2)+
-  # Eat out to help out
-  #geom_vline(xintercept=as.Date("2020-08-03"), color=phs_purple, linetype=1, size=1)+
-  #annotate("text", x=as.Date("2020-08-07"), y=33000, label="Eat out to help out introduced\n(3 Aug 2020)", color=phs_purple, hjust=0, size=3, fontface =2)+
   # Colours of lines and points
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
-  #scale_linetype_manual("Outcome", values=2:4) +
-  theme(legend.position = "bottom") +
-  scale_x_date(date_breaks = "months" , date_labels = "%b")
-
+  scale_color_manual("Group",values=c(eave_blue2, eave_green))+
+  scale_linetype_manual("Group", values = c(2,1)) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  geom_text(data = data.frame(Week_ending = rep(as.Date("2021-01-04"), 3),
+                              text = rep("2021", times=3),
+                              Count = c(30000, 13000, 4500),
+                              Outcome = sort(unique(scotland_data$Outcome))),
+            aes(x=Week_ending, y=Count, label = text), hjust=0, size=3) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_wrap(~Outcome, scales = "free") +
+  theme_classic() +
+  theme(legend.position = "bottom")
 
 p_count
 
@@ -88,64 +51,28 @@ p_count
 p_diff <- scotland_data %>%
   #mutate(Variation = Variation/100) %>%
   ggplot()+
-  # UK Lockdown - 23 Mar 2020
-  annotate("rect",xmin=as.Date("2020-03-23"), xmax=as.Date("2020-05-29"),
-           ymin=-80, ymax=10,fill=phs_red, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-03-23"), colour=phs_red, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-03-27"), y=15, label="UK lockdown\n(23 Mar 2020)", color=phs_red, hjust=0, size=3, fontface =2)+
-  # Phase 1 Introduced - 29 May 2020
-  annotate("rect",xmin=as.Date("2020-05-29"), xmax=as.Date("2020-06-19"),
-           ymin=-80, ymax=10, fill="orange", alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-05-29"), colour="orange", alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-06-01"), y=15, label="Phase 1 announced\n(29 May 2020)", color="orange", hjust=0, size=3, fontface =2)+
-  # Phase 2 introduced - 19 Jun 2020
-  annotate("rect",xmin=as.Date("2020-06-19"), xmax=as.Date("2020-07-09"),
-           ymin=-80, ymax=10, fill="gold", alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-06-19"), colour="gold", alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-06-21"), y=20, label="Phase 2 announced\n(19 Jun 2020)", color="gold2", hjust=0, size=3, fontface =2)+
-  # Phase 3 introduced - 9th July
-  annotate("rect",xmin=as.Date("2020-07-09"), xmax=as.Date("2020-09-22"),
-           ymin=-80, ymax=10, fill=phs_green, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-07-09"), colour=phs_green, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-07-11"), y=25, label="Phase 3 announced\n(09 Jul 2020)", color=phs_green, hjust=0, size=3, fontface =2)+
-  # Phase 3 restrictions announced - 22 Sept
-  annotate("rect",xmin=as.Date("2020-09-22"), xmax=as.Date("2020-11-02"),
-           ymin=-80, ymax=10, fill="gold", alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-09-22"), colour="gold", alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-09-25"), y=15, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="gold", hjust=0, size=3, fontface =2)+
-  # Local authority levels allocated - 2 Nov
-  annotate("rect",xmin=as.Date("2020-11-02"), xmax=as.Date("2020-12-26"),
-           ymin=-80, ymax=10, fill=phs_purple2, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-11-02"), colour=phs_purple2, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-11-05"), y=20, label="Local authority levels allocated\n(2 Nov 2020)", color=phs_purple2, hjust=0, size=3, fontface =2)+
-  # Boxing day lockdown - 26 Dec
-  annotate("rect",xmin=as.Date("2020-12-26"), xmax=max(scotland_data$Week_ending),
-           ymin=-80, ymax=10,fill=phs_red, alpha=0.3)+
-  geom_vline(xintercept = as.Date("2020-12-26"), colour=phs_red, alpha=0.3, linetype=1, size=1)+
-  annotate("text", x=as.Date("2020-12-29"), y=25, label="Nationwide lockdown\n(26 Dec 2020)", color=phs_red, hjust=0, size=3, fontface =2)+
   # Lines
-  geom_line(aes(x=Week_ending, y=Variation, color=Outcome), size=1)+
+  geom_line(aes(x=Week_ending, y=Variation), size=0.5, col=eave_blue)+
   # Points
-  geom_point(aes(x=Week_ending, y=Variation, color=Outcome, shape=Outcome), size=2)+
+  # geom_point(aes(x=Week_ending, y=Variation, color=Outcome, shape=Outcome), size=2)+
   theme_classic()+
   # Labels
   labs(x = "Week ending (2020-2021)", y ="% change from 2018-2019 average") +
   # 2018-2019 average
   geom_hline(yintercept = 0, linetype=2)+
-  annotate("text", x=as.Date("2021-03-01"), y=2, label="2018-2019 average", hjust=1, size=3) +
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
-  #scale_linetype_manual("Outcome", values=2:4) +
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
   theme(legend.position = "bottom") +
   scale_x_date(date_breaks = "months" , date_labels = "%b")+
-  scale_y_continuous(labels = function(x) paste0(x, "%")) #+
-#geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
-#annotate("text", x=as.Date("2021-01-03"), y=15, label="2021", hjust=0, size=4)
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  facet_wrap(~Outcome, scales = "free") +
+  scale_y_continuous(labels = function(x) paste0(x, "%"))
+
 
 
 p_diff
 
 # Plot together
-png(width=600, height=950,filename = "./outputs/overall_trends.png")
+png(width=900, height=600,filename = "./outputs/overall_trends.png")
 plot_grid(p_count, p_diff, labels = "AUTO", ncol=1, align = "v")
 
 dev.off()
