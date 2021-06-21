@@ -98,43 +98,41 @@ outcome_estimates_labels$Label <- paste(round(outcome_estimates$est,1), " (95% C
                                         round(outcome_estimates$upr,1), ")", sep="")
 
 # Plot estimates with 95% CIs
-# Intercept only
-outcome_estimates_int <- subset(outcome_estimates, Coeff_type=="Intercept")
-outcome_estimates_labels_int <- subset(outcome_estimates_labels, Coeff_type=="Intercept")
-p_int <- ggplot(data=outcome_estimates_int, aes(x=BA, y=est, col=Outcome))+
-  geom_hline(yintercept = 0, linetype=2)+
-  geom_point()+
-  geom_errorbar(aes(ymin=lwr, ymax=upr), width=0.5)+
-  facet_grid(~Outcome)+
-  theme_bw()+
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
-  theme(legend.position = "none")+
-  labs(x="Time period", y="Estimated intercept", title="A)")+
-  coord_flip()+
-  ylim(c(min(outcome_estimates_int$lwr)-25, max(outcome_estimates_int$upr)+25)) +
-  geom_text(data=outcome_estimates_labels_int, label=outcome_estimates_labels_int$Label, 
-            size=3,fontface = "bold", position = position_nudge(x = -0.25))
+p_ests <- ggplot(outcome_estimates_labels) +
+  geom_point(aes(x=est, y= Outcome, col= BA, shape=BA), size=2.5) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= Outcome, col= BA), width=0, size=0.75)+
+  facet_grid(.~Coeff_type, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "bottom")+
+  scale_color_manual("BA",values=c(eave_blue2, eave_orange)) +
+  labs(x="Estimate (95% CI)")
+
+p_ests
+
+png(width=700, height=300,filename = "./outputs/ITSA_ests.png")
+p_ests
+
+dev.off()
 
 
-outcome_estimates_slopes <- subset(outcome_estimates, Coeff_type=="Slope")
-outcome_estimates_labels_slopes <- subset(outcome_estimates_labels, Coeff_type=="Slope")
-p_slope <- ggplot(data=outcome_estimates_slopes, aes(x=BA, y=est, col=Outcome))+
-  geom_hline(yintercept = 0, linetype=2)+
-  geom_point()+
-  geom_errorbar(aes(ymin=lwr, ymax=upr), width=0.25)+
-  facet_grid(~Outcome)+
-  theme_bw()+
-  scale_color_manual("Outcome",values=c(phs_trendcol1, phs_main, phs_green))+
-  theme(legend.position = "none")+
-  labs(x="Time period", y="Estimated slopes", title="B)")+
-  coord_flip()+
-  ylim(c(min(outcome_estimates_slopes$lwr)-0.2, max(outcome_estimates_slopes$upr)+0.2)) +
-  geom_text(data=outcome_estimates_labels_slopes, label=outcome_estimates_labels_slopes$Label,
-            size=3, fontface = "bold", position = position_nudge(x = -0.25))
+# Difference estimates
+outcome_diff_estimates <- bind_rows(z_1[[2]], z_2[[2]], z_3[[2]])
 
+p_diff_ests <- ggplot(outcome_diff_estimates) +
+  geom_point(aes(x=est, y= Outcome), size=2.5, col=eave_blue2) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= Outcome), width=0, size=0.75, col=eave_blue2)+
+  facet_grid(.~coef_name, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "bottom")+
+  scale_color_manual("BA",values=c(eave_blue2, eave_orange)) +
+  labs(x="Estimate (95% CI)")
 
-gridExtra::grid.arrange(p_int, p_slope)
+png(width=700, height=300,filename = "./outputs/ITSA_diff_ests.png")
+p_diff_ests
 
+dev.off()
 
 ## Goodness of fit
 z_1[[4]]
