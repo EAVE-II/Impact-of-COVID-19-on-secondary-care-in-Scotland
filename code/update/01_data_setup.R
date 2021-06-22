@@ -19,6 +19,7 @@ library("rcompanion")
 library("tidyverse")
 library("cowplot")
 library("scales")
+library("lemon")
 
 #### 0.2 - Create colour scheme #### 
 phs_main <- rgb(67,53,139, maxColorValue = 255)
@@ -35,8 +36,16 @@ phs_teal <- rgb(38,164,117, maxColorValue = 255)
 phs_spec <- colorRampPalette(c(phs_purple2, phs_main))
 phs_spec2 <- colorRampPalette(c(phs_main, phs_purple2))
 
-col_scheme <- c(phs_trendcol1, phs_main, phs_green, phs_purple2, phs_orange, phs_red, phs_teal, "gold2", "gray40")
+
+eave_green <- rgb(54, 176, 136, maxColorValue = 255)
+eave_blue <- rgb(71,93,167, maxColorValue = 255)
+eave_blue2 <- rgb(0,192,209, maxColorValue = 255)
+eave_gold <- rgb(255,192,0, maxColorValue = 255)
+eave_orange <- rgb(244,143,32, maxColorValue = 255)
+
+col_scheme <- c(eave_blue, eave_green, eave_blue2, phs_purple, eave_orange, eave_gold, phs_red, phs_trendcol2, phs_green)
 shape_scheme <- c(19,17,15,23,0,1,2, 3, 4)
+
 
 #### 1 - Load in data #### 
 
