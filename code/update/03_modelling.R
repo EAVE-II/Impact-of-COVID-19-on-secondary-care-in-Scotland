@@ -125,14 +125,14 @@ outcome_diff_estimates$Label <- paste(round(outcome_diff_estimates$est,1), " (95
                                         round(outcome_diff_estimates$upr,1), ")", sep="")
 
 p_diff_ests <- ggplot(outcome_diff_estimates) +
-  geom_point(aes(x=est, y= Outcome), size=2.5, col=eave_blue2) +
-  geom_errorbar(aes(xmin=lwr, xmax=upr, y= Outcome), width=0, size=0.75, col=eave_blue2)+
-  geom_text(aes(x=est, y=Outcome, label=Label), col=eave_blue2, vjust=-1, fontface=2, size=3) +
+  geom_point(aes(x=est, y= Outcome, col=coef_name), size=2.5) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= Outcome, col=coef_name), width=0, size=0.75)+
+  geom_text(aes(x=est, y=Outcome, label=Label, col=coef_name), vjust=-1, fontface=2, size=3) +
   facet_grid(.~coef_name, scales = "free") +
   geom_vline(xintercept = 0, linetype=2) +
   theme_classic()+
-  theme(legend.position = "bottom")+
-  scale_color_manual("BA",values=c(eave_blue2, eave_orange)) +
+  theme(legend.position = "none")+
+  scale_color_manual("BA",values=c(eave_green, eave_orange)) +
   labs(x="Estimate (95% CI)")
 
 p_diff_ests
@@ -146,6 +146,14 @@ dev.off()
 z_1[[4]]
 z_2[[4]]
 z_3[[4]]
+
+
+## Plot ITSA with estimates
+png(width=1100, height=800,filename = "./outputs/ITSA_plot_ests.png")
+plot_grid(p_itsa, p_diff_ests, align = "v", ncol=1, labels = "AUTO", rel_heights = c(1,1))
+
+dev.off()
+
 
 
 #### 3.2 - Total outcomes - 3 way interaction ####
