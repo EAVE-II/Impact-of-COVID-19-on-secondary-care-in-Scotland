@@ -196,15 +196,24 @@ anova(baseline_model3)
 # 3 - No_days*BA+Category*BA
 # 4 - No_days*BA+Category*No_days+Category*BA
 
-demographic_models_fn("Sex", "A&E Attendances", "2020-09-22", T, T)
-demographic_models_fn("Sex", "Emergency Hospital Admissions", "2020-09-22", T, T)
-demographic_models_fn("Sex", "Planned Hospital Admissions", "2020-09-22", T, T)
+## Sex
+demographic_models_fn("Sex", "A&E Attendances", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("Sex", "Emergency Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("Sex", "Planned Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+# No significant differences between sex
 
-demographic_models_fn("Age", "A&E Attendances")
-demographic_models_fn("Age", "Emergency Hospital Admissions")
-demographic_models_fn("Age", "Planned Hospital Admissions")
+## Age
+demographic_models_fn("Age", "A&E Attendances", "2020-09-22", T, T) # Model 1 has lowest AIC and BIc
+demographic_models_fn("Age", "Emergency Hospital Admissions", "2020-09-22", T, T) # Three way interaction has lowest AIC and significant F-test pvalue
+demographic_models_fn("Age", "Planned Hospital Admissions", "2020-09-22", T, T) # Model 3 has lowest AIC and BIC
+# Some differences between age group - requires further investigation
 
-demographic_models_fn("SIMD", "A&E Attendances")
-demographic_models_fn("SIMD", "Emergency Hospital Admissions")
-demographic_models_fn("SIMD", "Planned Hospital Admissions")
+## SIMD
+demographic_models_fn("SIMD", "A&E Attendances", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("SIMD", "Emergency Hospital Admissions", "2020-09-22", T, T) # Model 1 has lowest AIC and BIC
+demographic_models_fn("SIMD", "Planned Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+# No significant differences between SIMDs, possibly something in emergency hosp admissions that needs investigated further
+
+
+
 
