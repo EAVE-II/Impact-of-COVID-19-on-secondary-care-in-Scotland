@@ -86,7 +86,7 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
     mutate(Outcome = outcome) %>%
     filter(coef_name %in% c("BAAfter", "No_days:BAAfter")) %>%
     mutate(coef_name = ifelse(coef_name=="BAAfter", "Step change", "Slope change")) %>%
-    mutate(coef_name = as.factor(coef_name, levels=c("Step change", "Slope change")))
+    mutate(coef_name = factor(coef_name, levels=c("Step change", "Slope change")))
   
   
   ## Model goodness of fit
