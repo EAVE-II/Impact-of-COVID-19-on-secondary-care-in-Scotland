@@ -367,7 +367,7 @@ demographic_variation_plot_fn <- function(demographic){
     scale_y_continuous(labels = function(x) paste0(x, "%"))
   
   # Plot together
-  plot_grid(p_ae, p_emerg, p_planned, align = "v", ncol=1)
+  plot_grid(p_ae, p_emerg, p_planned, align = "v", ncol=1, labels = "AUTO")
   
   
   

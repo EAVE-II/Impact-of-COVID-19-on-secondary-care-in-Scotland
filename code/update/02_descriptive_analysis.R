@@ -85,15 +85,15 @@ demographic_variation_plot_fn("Sex")
 demographic_variation_plot_fn("Age")
 demographic_variation_plot_fn("SIMD")
 
-png(width=900, height=600,filename = "./outputs/sex_trends.png")
+png(width=600, height=900,filename = "./outputs/sex_trends.png")
 demographic_variation_plot_fn("Sex")
 dev.off()
 
-png(width=900, height=600,filename = "./outputs/age_trends.png")
+png(width=600, height=900, filename = "./outputs/age_trends.png")
 demographic_variation_plot_fn("Age")
 dev.off()
 
-png(width=900, height=600,filename = "./outputs/simd_trends.png")
+png(width=600, height=900,filename = "./outputs/simd_trends.png")
 demographic_variation_plot_fn("SIMD")
 dev.off()
 
