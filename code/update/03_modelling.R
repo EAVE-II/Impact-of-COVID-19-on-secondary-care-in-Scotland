@@ -101,6 +101,7 @@ outcome_estimates_labels$Label <- paste(round(outcome_estimates$est,1), " (95% C
 p_ests <- ggplot(outcome_estimates_labels) +
   geom_point(aes(x=est, y= Outcome, col= BA, shape=BA), size=2.5) +
   geom_errorbar(aes(xmin=lwr, xmax=upr, y= Outcome, col= BA), width=0, size=0.75)+
+  geom_text(aes(x=est, y=Outcome, label=Label, col=BA), vjust=-1, fontface=2, size=3) +
   facet_grid(.~Coeff_type, scales = "free") +
   geom_vline(xintercept = 0, linetype=2) +
   theme_classic()+
@@ -119,15 +120,22 @@ dev.off()
 # Difference estimates
 outcome_diff_estimates <- bind_rows(z_1[[2]], z_2[[2]], z_3[[2]])
 
+outcome_diff_estimates$Label <- paste(round(outcome_diff_estimates$est,1), " (95% CI: ",
+                                        round(outcome_diff_estimates$lwr,1), " to ",
+                                        round(outcome_diff_estimates$upr,1), ")", sep="")
+
 p_diff_ests <- ggplot(outcome_diff_estimates) +
   geom_point(aes(x=est, y= Outcome), size=2.5, col=eave_blue2) +
   geom_errorbar(aes(xmin=lwr, xmax=upr, y= Outcome), width=0, size=0.75, col=eave_blue2)+
+  geom_text(aes(x=est, y=Outcome, label=Label), col=eave_blue2, vjust=-1, fontface=2, size=3) +
   facet_grid(.~coef_name, scales = "free") +
   geom_vline(xintercept = 0, linetype=2) +
   theme_classic()+
   theme(legend.position = "bottom")+
   scale_color_manual("BA",values=c(eave_blue2, eave_orange)) +
   labs(x="Estimate (95% CI)")
+
+p_diff_ests
 
 png(width=700, height=300,filename = "./outputs/ITSA_diff_ests.png")
 p_diff_ests
