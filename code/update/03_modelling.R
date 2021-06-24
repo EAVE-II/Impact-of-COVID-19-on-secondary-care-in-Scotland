@@ -6,7 +6,7 @@
 ## Description: 03_modelling: ITSA modelling
 ######################################################################
 
-#### 1 - Load in data and functions ####
+#### 0 - Load in data and functions ####
 
 # Functions
 source("./code/update/00_functions.R")
@@ -17,7 +17,10 @@ source("./code/update/00_data_setup.R")
 # Date: 22nd September 2020
 # Look at post lockdown only
 
-##### 3.1 - Total outcomes ####
+##### 1 - Total outcomes ####
+# Looking at each outcome overall
+
+#### 1.1 - Baseline models per outcome ####
 
 # Use 'baseline_model_fn' from 'updated_functions.R' to get information on all outcomes
 ## 2 change-point
@@ -156,7 +159,7 @@ dev.off()
 
 
 
-#### 3.2 - Total outcomes - 3 way interaction ####
+#### 1.2 - Total outcomes - 3 way interaction ####
 # This compares across the three outcomes
 changepoint <- "2020-09-22"
 
@@ -174,9 +177,11 @@ summary(baseline_model3)
 anova(baseline_model3)
 
 
-#### 3.3 - Demographic modelling ####
+#### 2 - Demographic modelling ####
 
-# demographic_models_fn from updated_functions
+#### 2.1 - Finding model for each demographic and outcome ####
+# demographic_models_fn from 00_functions.R
+
 # Input:
 # - demographic: Demographic of interest (Age, Sex, SIMD)
 # - outcome: Outcome of interest ("Planned Hospital Admissions","Emergency Hospital Admissions" or "A&E Attendances")
@@ -215,5 +220,301 @@ demographic_models_fn("SIMD", "Planned Hospital Admissions", "2020-09-22", T, T)
 # No significant differences between SIMDs, possibly something in emergency hosp admissions that needs investigated further
 
 
+#### 2.2 - Fitting optimum model per demographic and outcome ####
+# demographic_alternative_model_fn from 00_functions.R 
+
+### Age
+
+# Age model for A&E Attendances (Model 3)
+age_ae_model <- demographic_alternative_model_fn("Age", "A&E Attendances", 1, as.Date("2020-09-22"), T, T, F)
+# Age model for Emergency Hospital Admissions (Model 3)
+age_emerg_model <- demographic_alternative_model_fn("Age", "Emergency Hospital Admissions", 3, as.Date("2020-09-22"), T, T, F)
+# Age model for Planned Hospital Admissions (Model 3)
+age_planned_model <- demographic_alternative_model_fn("Age", "Planned Hospital Admissions", 3, as.Date("2020-09-22"), T, T, F)
 
 
+
+## Plots for A&E 
+# ITSA predictions
+p_age_ae_itsa <- ggplot(data.frame(age_ae_model[5]), aes(x=Date, y=Variation))+
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict, col=Category), size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
+  theme_classic()+
+  labs(x = " ", y =" ")+
+  geom_hline(yintercept = 0, linetype=2)+
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  annotate("text", x=as.Date("2021-01-04"), y=2, label="2021", hjust=0, size=3) +
+  # White background for change-point
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
+  # Change-point 1
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_rep_grid(~Outcome) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme(legend.title=element_text(size=9), 
+        legend.text=element_text(size=8),
+        legend.key.size = unit(0.25, "cm"),
+        legend.justification="left",
+        legend.position = c(0.01,0.95),
+        legend.direction =  "horizontal")
+
+
+# Estimates
+p_age_ae_ests <- ggplot(age_ae_model[[4]]) +
+  geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
+  geom_text(aes(x=est, y=categories, label=Label), vjust=-1, fontface=2, size=3, col = eave_blue) +
+  facet_grid(.~coef_name, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  scale_color_manual("BA",values=c(eave_green, eave_orange)) +
+  labs(x="Estimate (95% CI)")
+
+# Plot together
+p_age_ae <- plot_grid(p_age_ae_itsa, p_age_ae_ests, ncol=1)
+p_age_ae
+
+
+
+## Plots for Emerg 
+# ITSA predictions
+p_age_emerg_itsa <- ggplot(data.frame(age_emerg_model[5]), aes(x=Date, y=Variation))+
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict, col=Category), size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
+  theme_classic()+
+  labs(x = " ", y =" ")+
+  geom_hline(yintercept = 0, linetype=2)+
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  annotate("text", x=as.Date("2021-01-04"), y=2, label="2021", hjust=0, size=3) +
+  # White background for change-point
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
+  # Change-point 1
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_rep_grid(~Outcome) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme(legend.title=element_text(size=9), 
+        legend.text=element_text(size=8),
+        legend.key.size = unit(0.25, "cm"),
+        legend.justification="left",
+        legend.position = c(0.01,0.95),
+        legend.direction =  "horizontal")
+
+
+# Estimates
+p_age_emerg_ests <- ggplot(age_emerg_model[[4]]) +
+  geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
+  geom_text(aes(x=est, y=categories, label=Label), vjust=-1, fontface=2, size=3, col = eave_blue) +
+  facet_grid(.~coef_name, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  scale_color_manual("BA",values=c(eave_green, eave_orange)) +
+  labs(x="Estimate (95% CI)")
+
+# Plot together
+p_age_emerg <- plot_grid(p_age_emerg_itsa, p_age_emerg_ests, ncol=1)
+p_age_emerg
+
+
+## Plots for Planned 
+# ITSA predictions
+p_age_planned_itsa <- ggplot(data.frame(age_planned_model[5]), aes(x=Date, y=Variation))+
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict, col=Category), size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
+  theme_classic()+
+  labs(x = " ", y =" ")+
+  geom_hline(yintercept = 0, linetype=2)+
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  annotate("text", x=as.Date("2021-01-04"), y=2, label="2021", hjust=0, size=3) +
+  # White background for change-point
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
+  # Change-point 1
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_rep_grid(~Outcome) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme(legend.title=element_text(size=9), 
+        legend.text=element_text(size=8),
+        legend.key.size = unit(0.25, "cm"),
+        legend.justification="left",
+        legend.position = c(0.01,0.95),
+        legend.direction =  "horizontal")
+
+
+# Estimates
+p_age_planned_ests <- ggplot(age_planned_model[[4]]) +
+  geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
+  geom_text(aes(x=est, y=categories, label=Label), vjust=-1, fontface=2, size=3, col = eave_blue) +
+  facet_grid(.~coef_name, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  scale_color_manual("BA",values=c(eave_green, eave_orange)) +
+  labs(x="Estimate (95% CI)")
+
+# Plot together
+p_age_planned <- plot_grid(p_age_planned_itsa, p_age_planned_ests, ncol=1)
+p_age_planned
+
+
+
+#### 3 - Specialty modelling ####
+
+#### 3.1 - Finding model for each Specialty and outcome ####
+# demographic_models_fn from 00_functions.R
+
+# Input:
+# - demographic: Demographic of interest (Age, Sex, SIMD)
+# - outcome: Outcome of interest ("Planned Hospital Admissions","Emergency Hospital Admissions" or "A&E Attendances")
+# - changepoint: The change-point of interest (a date)
+# - postld: Whether or not data should be subsetted to post lockdown only (T/F)
+# - weighted: Whether or not the model should be weighted to the Count (T/F)
+
+# Output:
+# 1- Summary of three way interaction (i.e. No_days*BA*Category)
+# 2 - AIC of all model combinations
+# 3 - BIC of all model combinations#
+
+# Combinations:
+# 0 - No_days*BA
+# 1 - No_days*BA+Category
+# 2 - No_days*BA+Category*No_days
+# 3 - No_days*BA+Category*BA
+# 4 - No_days*BA+Category*No_days+Category*BA
+
+## Find which model fits best
+demographic_models_fn("Specialty", "Emergency Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("Specialty", "Planned Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+
+
+#### 3.2 - Fitting optimum model per Specialty and outcome ####
+# demographic_alternative_model_fn from 00_functions.R 
+
+# Specialty model for Emergency Hospital Admissions (Model 3)
+specialty_emerg_model <- demographic_alternative_model_fn("Specialty", "Emergency Hospital Admissions", 3, as.Date("2020-09-22"), T, T, F)
+# Specialty model for Planned Hospital Admissions (Model 3)
+specialty_planned_model <- demographic_alternative_model_fn("Specialty", "Planned Hospital Admissions", 3, as.Date("2020-09-22"), T, T, F)
+
+
+
+## Plots for Emerg 
+# ITSA predictions
+p_spec_emerg_itsa <- ggplot(data.frame(specialty_emerg_model[5]), aes(x=Date, y=Variation))+
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict, col=Category), size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
+  theme_classic()+
+  labs(x = " ", y =" ")+
+  geom_hline(yintercept = 0, linetype=2)+
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  annotate("text", x=as.Date("2021-01-04"), y=2, label="2021", hjust=0, size=3) +
+  # White background for change-point
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
+  # Change-point 1
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_rep_grid(~Outcome) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme(legend.title=element_text(size=9), 
+        legend.text=element_text(size=8),
+        legend.key.size = unit(0.25, "cm"),
+        legend.justification="left",
+        legend.position = c(0.01,0.95),
+        legend.direction =  "horizontal")
+
+
+# Estimates
+p_spec_emerg_ests <- ggplot(specialty_emerg_model[[4]]) +
+  geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
+  geom_text(aes(x=est, y=categories, label=Label), vjust=-1, fontface=2, size=3, col = eave_blue) +
+  facet_grid(.~coef_name, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  scale_color_manual("BA",values=c(eave_green, eave_orange)) +
+  labs(x="Estimate (95% CI)")
+
+# Plot together
+p_spec_emerg <- plot_grid(p_spec_emerg_itsa, p_spec_emerg_ests, ncol=1)
+p_spec_emerg
+
+
+## Plots for Planned 
+# ITSA predictions
+p_spec_planned_itsa <- ggplot(data.frame(specialty_planned_model[5]), aes(x=Date, y=Variation))+
+  geom_ribbon( aes(ymin =Lwr, ymax =Upr, fill = Category, color = NULL), alpha = .15)+
+  geom_line(aes(x=Date, y=Predict, col=Category), size=0.75)+
+  geom_point(aes(shape=Category, col=Category), size=2)+
+  theme_classic()+
+  labs(x = " ", y =" ")+
+  geom_hline(yintercept = 0, linetype=2)+
+  annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
+  annotate("text", x=as.Date("2021-01-04"), y=2, label="2021", hjust=0, size=3) +
+  # White background for change-point
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
+  # Change-point 1
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  scale_color_manual("Age",values=col_scheme)+
+  scale_shape_manual("Age", values=shape_scheme)+
+  scale_fill_manual("Age",values=col_scheme)+
+  #facet_wrap(~Category) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  facet_rep_grid(~Outcome) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme(legend.title=element_text(size=9), 
+        legend.text=element_text(size=8),
+        legend.key.size = unit(0.25, "cm"),
+        legend.justification="left",
+        legend.position = c(0.01,0.95),
+        legend.direction =  "horizontal")
+
+
+# Estimates
+p_spec_planned_ests <- ggplot(specialty_planned_model[[4]]) +
+  geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
+  geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
+  geom_text(aes(x=est, y=categories, label=Label), vjust=-1, fontface=2, size=3, col = eave_blue) +
+  facet_grid(.~coef_name, scales = "free") +
+  geom_vline(xintercept = 0, linetype=2) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  scale_color_manual("BA",values=c(eave_green, eave_orange)) +
+  labs(x="Estimate (95% CI)")
+
+# Plot together
+p_spec_planned <- plot_grid(p_spec_planned_itsa, p_spec_planned_ests, ncol=1)
+p_spec_planned
