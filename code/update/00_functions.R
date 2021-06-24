@@ -393,7 +393,18 @@ demographic_models_fn <- function(demographic, outcome, changepoint, postld, wei
     demographic_data <- scotland_data_age
   } else {if(demographic=="SIMD"){
     demographic_data <- scotland_data_simd
-  }}}
+  } else {if(demographic=="Specialty"){
+    demographic_data <- scotland_data_specialty %>%
+      select(-Category) %>%
+      rename(Category = Specialty) %>%
+      mutate(Type = "Specialty")
+  } else {if(demographic=="NHS Health Board"){
+    demographic_data <- scotland_data_hbs %>%
+      select(-Category) %>%
+      rename(Category = Area_name) %>%
+      mutate(Type = "NHS Health Board")
+  }}}}}
+  
   
   
   if(postld == T){
@@ -462,7 +473,20 @@ demographic_alternative_model_fn <- function(demographic, outcome, model, change
     demographic_data <- scotland_data_age
   } else {if(demographic=="SIMD"){
     demographic_data <- scotland_data_simd
-  }}}
+  } else {if(demographic=="Specialty"){
+    demographic_data <- scotland_data_specialty %>%
+      select(-Category) %>%
+      rename(Category = Specialty) %>%
+      mutate(Type = "Specialty") %>%
+      mutate(Category = factor(Category))
+  } else {if(demographic=="NHS Health Board"){
+    demographic_data <- scotland_data_hbs %>%
+      select(-Category) %>%
+      rename(Category = Area_name) %>%
+      mutate(Type = "NHS Health Board")%>%
+      mutate(Category = factor(Category))
+  }}}}}
+  
   
   
   # Subset to post lockdown only and outcome 
