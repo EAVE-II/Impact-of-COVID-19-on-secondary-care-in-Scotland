@@ -104,7 +104,7 @@ scotland_data_specialty_emerg <- subset(scotland_data_specialty, Outcome=="Emerg
 
 p_emerg <- ggplot(scotland_data_specialty_emerg) +
   # Labels
-  labs(x = "Week ending (2020-2021)", y ="% change from 2018-2019 average", title="Planned") +
+  labs(x = "Week ending (2020-2021)", y ="% change from 2018-2019 average", title="Emergency") +
   # Lines
   geom_line(aes(x=Week_ending, y=Variation), color=eave_blue, size=1)+
   # 2018-2019 average
@@ -116,6 +116,7 @@ p_emerg <- ggplot(scotland_data_specialty_emerg) +
         legend.key.size = unit(0.25, "cm"),
         legend.justification="left") +
   scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  scale_y_continuous(labels = function(x) paste0(x, "%"))+
   facet_rep_wrap(~Specialty, ncol=4)
 
 p_emerg
@@ -137,6 +138,7 @@ p_planned <- ggplot(scotland_data_specialty_planned) +
         legend.key.size = unit(0.25, "cm"),
         legend.justification="left") +
   scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  scale_y_continuous(labels = function(x) paste0(x, "%"))+
   facet_rep_wrap(~Specialty, ncol=4)
 
 
@@ -145,7 +147,8 @@ p_planned
 plot_grid(p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO")
 
 png(width=900, height=900,filename = "./outputs/specialty_trends.png")
-plot_grid(p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO")
+plot_grid(p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO",
+          rel_heights = c(3/5,2/5))
 
 dev.off()
 
@@ -218,3 +221,19 @@ png(width=900, height=1300,filename = "./outputs/nhs_trends.png")
 plot_grid(p_ae, p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO")
 
 dev.off()
+
+
+
+
+#### 6 - Mean differences ####
+# Differences between 2018-2019 average and 2020-2021 counts for:
+#   4 weeks before change-point 2020-09-06 to 2020-09-27
+#   4 weeks after change-point 2020-10-04 to 2020-11-01
+#   4 weeks before end date: 2021-02-28 to 2021-03-28
+
+ae_mean_diff <- mean_diff_tbl("A&E Attendances", as.Date("2020-09-22"), c("Total", "Age", "Sex", "SIMD", "NHS Health Board"))
+emerg_mean_diff <- mean_diff_tbl("Emergency Hospital Admissions", as.Date("2020-09-22"), c("Total", "Age", "Sex", "SIMD","Specialty", "NHS Health Board"))
+planned_mean_diff <- mean_diff_tbl("Planned Hospital Admissions", as.Date("2020-09-22"), c("Total", "Age", "Sex", "SIMD","Specialty", "NHS Health Board"))
+
+
+
