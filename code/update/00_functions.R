@@ -249,11 +249,11 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
     baseline_coefs_cis <- confint(baseline_model)
     
     # Populate the estimate table
-    baseline_model_estimates$est[which(baseline_model_estimates$BA==time_periods[i])] <- round(baseline_coefs[1:2],3)
+    baseline_model_estimates$est[which(baseline_model_estimates$BA==time_periods[i])] <- signif(baseline_coefs[1:2],3)
     
-    baseline_model_estimates$lwr[which(baseline_model_estimates$BA==time_periods[i])] <- round(baseline_coefs_cis[1:2,1],3)
+    baseline_model_estimates$lwr[which(baseline_model_estimates$BA==time_periods[i])] <- signif(baseline_coefs_cis[1:2,1],3)
     
-    baseline_model_estimates$upr[which(baseline_model_estimates$BA==time_periods[i])] <- round(baseline_coefs_cis[1:2,2],3)
+    baseline_model_estimates$upr[which(baseline_model_estimates$BA==time_periods[i])] <- signif(baseline_coefs_cis[1:2,2],3)
     
     
     
@@ -898,15 +898,15 @@ mean_diff_tbl <- function(outcome, changepoint, explanatory){
     BA_4wk_tp_unique <- unique(scotland_data_outcome$BA_4wk_tp)
     BA_4wk_tp_unique <- BA_4wk_tp_unique[!is.na(BA_4wk_tp_unique)]
     
-    category_unique <- unique(data_input_outcome$Category)
+    category_unique <- sort(unique(data_input_outcome$Category))
     
     # Skeleton table
-    mean_diff_tbl <- expand_grid(category_unique, BA_4wk_tp_unique) %>%
+    mean_diff_tbl <- expand_grid(explanatory_j, category_unique, BA_4wk_tp_unique) %>%
       mutate(Average_2018_2019 = NA,
              Count_2020_2021 = NA,
              Diff = NA,
              Sig_diff = NA) %>%
-      rename(Category=1, Period=2)
+      rename(Characteristic =1, Category=2, Period=3)
     
     
     
@@ -916,18 +916,19 @@ mean_diff_tbl <- function(outcome, changepoint, explanatory){
         filter(BA_4wk_tp == mean_diff_tbl$Period[i] & 
                  Category == mean_diff_tbl$Category[i])
       
-      t_test_i <- t.test(data_input_outcome_i$Count, data_input_outcome_i$Average_2018_2019)
+      t_test_i <- wilcox.test(data_input_outcome_i$Count, data_input_outcome_i$Average_2018_2019)
       t_test_i
       
       mean_diff_tbl$Average_2018_2019[i] <- round(mean(data_input_outcome_i$Average_2018_2019),1)
       mean_diff_tbl$Count_2020_2021[i] <- round(mean(data_input_outcome_i$Count),1)
       
-      diff_i <- round(diff(t_test_i$estimate)*(-1),1)
-      ci_lwr_i <- round(t_test_i$conf.int[1],1)
-      ci_upr_i <- round(t_test_i$conf.int[2],1)
-      p_i <- ifelse(t_test_i$p.value<0.001, 0.001, round(t_test_i$p.value,3))
+      diff_i <- mean_diff_tbl$Average_2018_2019[i]-mean_diff_tbl$Count_2020_2021[i]
+      #ci_lwr_i <- round(t_test_i$conf.int[1],1)
+      #ci_upr_i <- round(t_test_i$conf.int[2],1)
+      p_i <- ifelse(t_test_i$p.value<0.001, "<0.001", round(t_test_i$p.value,3))
       
-      input_i <- paste0(diff_i, " (", ci_lwr_i, ", ", ci_upr_i, "; p=", p_i, ")")
+      #input_i <- paste0(diff_i, " (", ci_lwr_i, ", ", ci_upr_i, "; p=", p_i, ")")
+      input_i <- paste0(diff_i, " (p=", p_i, ")")
       
       mean_diff_tbl$Diff[i] <- input_i
       

@@ -39,6 +39,12 @@ p_count <- bind_rows(scotland_data %>%
                               Outcome = sort(unique(scotland_data$Outcome))),
             aes(x=Week_ending, y=Count, label = text), hjust=0, size=3) +
   scale_x_date(date_breaks = "months" , date_labels = "%b") +
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
+  geom_text(data = data.frame(Week_ending = as.Date("2020-09-26"),
+                              text = "Restrictions announced\n(22 Sep 2020)",
+                              Count = c(32000),
+                              Outcome = "A&E Attendances"),
+            aes(x=Week_ending, y=Count, label = text), hjust=0, size=3, col="firebrick1", fontface=2) +
   facet_wrap(~Outcome, scales = "free") +
   theme_classic() +
   theme(legend.position = "bottom")
@@ -61,6 +67,7 @@ p_diff <- scotland_data %>%
   # 2018-2019 average
   geom_hline(yintercept = 0, linetype=2)+
   annotate("text", x=as.Date("2020-04-01"), y=2, label="2018-2019 average", hjust=0, size=3) +
+  geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
   theme(legend.position = "bottom") +
   scale_x_date(date_breaks = "months" , date_labels = "%b")+
   geom_vline(xintercept = as.Date("2021-01-01"), linetype=2)+
@@ -234,6 +241,13 @@ dev.off()
 ae_mean_diff <- mean_diff_tbl("A&E Attendances", as.Date("2020-09-22"), c("Total", "Age", "Sex", "SIMD", "NHS Health Board"))
 emerg_mean_diff <- mean_diff_tbl("Emergency Hospital Admissions", as.Date("2020-09-22"), c("Total", "Age", "Sex", "SIMD","Specialty", "NHS Health Board"))
 planned_mean_diff <- mean_diff_tbl("Planned Hospital Admissions", as.Date("2020-09-22"), c("Total", "Age", "Sex", "SIMD","Specialty", "NHS Health Board"))
+
+
+write.csv(ae_mean_diff, file = "./outputs/ae_mean_diff.csv", row.names = F)
+write.csv(emerg_mean_diff, file = "./outputs/emerg_mean_diff.csv", row.names = F)
+write.csv(planned_mean_diff, file = "./outputs/planned_mean_diff.csv", row.names = F)
+
+
 
 
 
