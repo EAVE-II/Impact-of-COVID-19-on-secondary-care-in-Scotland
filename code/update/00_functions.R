@@ -105,27 +105,39 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
   p1 <- ggplot(aes(x=residuals), data=baseline_mod_diag)+
     geom_histogram() +
     theme_light() +
-    labs(x="Residuals")
+    labs(x="Residuals", title="Histogram of residuals")
   
   # QQ Plot
   p2 <- ggplot(aes(sample = residuals), data=baseline_mod_diag) +
     stat_qq() + stat_qq_line() +
-    theme_light()
+    theme_light() +
+    labs(title = "QQ plot")
   
   
   # Residuals vs fitted
   p3 <- ggplot(aes(x=fitted.values, y=residuals), data=baseline_mod_diag) +
     geom_point()+
     geom_hline(yintercept = 0) +
-    theme_light()
+    theme_light() +
+    labs(title = "Residuals vs fitted values")
   
   
-  # ACF and PACF - fix to ggplot later
-  #acf(baseline_residuals, main=" ")
+  # ACF
+  p4 <- ggAcf(baseline_mod_diag$residuals)+
+    theme_light() +
+    labs(title = "ACF")
+  
   # PACF
-  #pacf(baseline_residuals, main=" ")
+  p5 <- ggPacf(baseline_mod_diag$residuals)+
+    theme_light()+
+    labs(title = "PACF")
   
   
+  lm_plots <- plot_grid(p1, p2, p3, ncol =3)
+  ts_plots <- plot_grid(p4, p5)
+  
+  diag_plots_output <- plot_grid(lm_plots,ts_plots, ncol=1)
+
   ## Predictions
   # Start
   z_strt <- lubridate::floor_date(as.Date(min(data_input$Week_ending)), 
@@ -266,8 +278,8 @@ baseline_model_fn <- function(data, outcome, postld, changepoint, weighted, diag
   ## Outputs
   
   if(diag_plots == T){
-    return(list(gridExtra::grid.arrange(p1, p2, p3, ncol=3), 
-                baseline_model_prediction, baseline_diff_ests, baseline_model_estimates, baseline_mod_good))
+    return(list(baseline_model_prediction, baseline_diff_ests, baseline_model_estimates, baseline_mod_good,
+                diag_plots_output))
   } else{
     return(list(baseline_model_prediction, baseline_diff_ests, baseline_model_estimates, baseline_mod_good))
     
@@ -765,68 +777,77 @@ demographic_alternative_model_fn <- function(demographic, outcome, model, change
     arrange(Category, Date, desc(BA))  
   
   
+  
+  ## Diagnostic plots
+  # Residuals and fitted values
+  baseline_mod_diag <- tibble(residuals = alternative_model$residuals,
+                              fitted.values = alternative_model$fitted.values,
+                              category = demographic_data_outcome$Category)
+  
+  # Plots:
+  # Histogram
+  p1 <- ggplot(aes(x=residuals), data=baseline_mod_diag)+
+    geom_histogram() +
+    theme_light() +
+    labs(x="Residuals", title="Histogram of residuals")
+  
+  # QQ Plot
+  p2 <- ggplot(aes(sample = residuals), data=baseline_mod_diag) +
+    stat_qq() + stat_qq_line() +
+    theme_light() +
+    labs(title = "QQ plot")
+  
+  
+  # Residuals vs fitted
+  p3 <- ggplot(aes(x=fitted.values, y=residuals), data=baseline_mod_diag) +
+    geom_point()+
+    geom_hline(yintercept = 0) +
+    theme_light() +
+    labs(title = "Residuals vs fitted values")
+  
+  
+  # ACF and PACF
+  p4_list <- list()
+  p5_list <- list()
+  
+  categories <- unique(baseline_mod_diag$category)
+  
+  for(i in 1:length(categories)){
+    baseline_mod_diag_i <- baseline_mod_diag %>%
+      filter(category == categories[i])
+    
+    
+    p4_list[[i]] <- ggAcf(baseline_mod_diag_i$residuals)+
+      theme_light() +
+      labs(title = paste0("ACF: ", categories[i]))
+    
+    p5_list[[i]] <- ggPacf(baseline_mod_diag_i$residuals)+
+      theme_light() +
+      labs(title = paste0("PACF: ", categories[i]))
+    
+  }
+  
+  # ACF
+  p4 <- do.call("grid.arrange", c(p4_list, ncol=2))
+  # PACF
+  p5 <- do.call("grid.arrange", c(p5_list, ncol=2))
+  
+  
+  lm_plots <- plot_grid(p1, p2, p3, ncol =3)
+  
+  n_cats <- length(categories)
+  n_row <- 1 + n_cats
+  
+  
+  diag_plots_output <- plot_grid(lm_plots,p4, p5, ncol=1, rel_heights = c(1/n_row, (n_cats/2)/n_row, (n_cats/2)/n_row))
+  
+  
   ## Outputs
   
   if(diag_plots == T){
-    # [3] Model diagnostics
-    # Residuals
-    alternative_residuals <- alternative_model$residuals
-    names(alternative_residuals) <- demographic_data_outcome$Category
-    
-    #Fitted values
-    alternative_fitted_values <- alternative_model$fitted.values
-    names(alternative_fitted_values) <- demographic_data_outcome$BA
-    
-    par(mfrow=c(1,3))
-    # Histograms
-    hist(alternative_residuals, breaks=50, main=" ", xlab="Residuals")
-    
-    # QQ Plot
-    qqnorm(alternative_residuals, main=" ")
-    qqline(alternative_residuals)
-    
-    # Residuals vs fitted
-    plot(alternative_fitted_values, alternative_residuals, xlab="Fitted values", ylab="Residuals")
-    abline(h=0,lty=2)
-    
-    # ACF
-    if(demographic=="Sex"){
-      par(mfrow=c(1,2))
-    } else {if(demographic=="Age"){
-      par(mfrow=c(2,4))
-    } else {if(demographic=="SIMD"){
-      par(mfrow=c(1,5))
-    }}}
-    
-    for(k in 1:length(categories)){
-      alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
-      
-      # ACF
-      acf(alternative_residuals_category, main=categories[k])
-    }
-    
-    
-    # PACF
-    if(demographic=="Sex"){
-      par(mfrow=c(1,2))
-    } else {if(demographic=="Age"){
-      par(mfrow=c(2,4))
-    } else {if(demographic=="SIMD"){
-      par(mfrow=c(1,5))
-    }}}
-    
-    for(k in 1:length(categories)){
-      alternative_residuals_category <- alternative_residuals[which(names(alternative_residuals)==categories[k])]
-      
-      # PACF
-      pacf(alternative_residuals_category, main=categories[k])
-    }
-    
-    
-    
-    ## Outputs
-    
-    return(list(summary(alternative_model), anova(alternative_model), alternative_model_estimates,alternative_model_diff_estimates, alternative_model_prediction))
+
+    return(list(summary(alternative_model), anova(alternative_model), alternative_model_estimates,alternative_model_diff_estimates, alternative_model_prediction,
+                diag_plots_output))
     
   } else {
     return(list(summary(alternative_model), anova(alternative_model), alternative_model_estimates, alternative_model_diff_estimates, alternative_model_prediction))
@@ -895,7 +916,7 @@ mean_diff_tbl <- function(outcome, changepoint, explanatory){
                                        ))))
     
     # Unique levels
-    BA_4wk_tp_unique <- unique(scotland_data_outcome$BA_4wk_tp)
+    BA_4wk_tp_unique <- unique(data_input_outcome$BA_4wk_tp)
     BA_4wk_tp_unique <- BA_4wk_tp_unique[!is.na(BA_4wk_tp_unique)]
     
     category_unique <- sort(unique(data_input_outcome$Category))
@@ -922,7 +943,7 @@ mean_diff_tbl <- function(outcome, changepoint, explanatory){
       mean_diff_tbl$Average_2018_2019[i] <- round(mean(data_input_outcome_i$Average_2018_2019),1)
       mean_diff_tbl$Count_2020_2021[i] <- round(mean(data_input_outcome_i$Count),1)
       
-      diff_i <- mean_diff_tbl$Average_2018_2019[i]-mean_diff_tbl$Count_2020_2021[i]
+      diff_i <- mean_diff_tbl$Count_2020_2021[i]-mean_diff_tbl$Average_2018_2019[i]
       #ci_lwr_i <- round(t_test_i$conf.int[1],1)
       #ci_upr_i <- round(t_test_i$conf.int[2],1)
       p_i <- ifelse(t_test_i$p.value<0.001, "<0.001", round(t_test_i$p.value,3))
