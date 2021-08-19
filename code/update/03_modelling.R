@@ -23,32 +23,18 @@ source("./code/update/00_data_setup.R")
 #### 1.1 - Baseline models per outcome ####
 
 # Use 'baseline_model_fn' from 'updated_functions.R' to get information on all outcomes
-## 2 change-point
-# Obtain predictions and estimates
-z_1 <- baseline_model_fn(data = scotland_data, outcome = "A&E Attendances",
-                         postld = T, changepoint = c("2020-09-22", "2020-12-26"), weighted = T, diag_plots = F)
-z_1[[2]]
-
-z_2 <- baseline_model_fn(data = scotland_data, outcome = "Emergency Hospital Admissions",
-                         postld = T, changepoint = c("2020-09-22", "2020-12-26"), weighted = T, diag_plots = F)
-z_2[[2]]
-
-z_3 <- baseline_model_fn(data = scotland_data, outcome = "Planned Hospital Admissions",
-                         postld = T, changepoint = c("2020-09-22", "2020-12-26"), weighted = T, diag_plots = F)
-z_3[[2]]
-
 ## 1 change-point
 # Obtain predictions and estimates
 z_1 <- baseline_model_fn(data = scotland_data, outcome = "A&E Attendances",
-                         postld = T, changepoint = c("2020-09-22"), weighted = T, diag_plots = F)
+                         postld = T, changepoint = c("2020-09-22"), weighted = F, diag_plots = T)
 z_1[[2]]
 
 z_2 <- baseline_model_fn(data = scotland_data, outcome = "Emergency Hospital Admissions",
-                         postld = T, changepoint = c("2020-09-22"), weighted = T, diag_plots = F)
+                         postld = T, changepoint = c("2020-09-22"), weighted = F, diag_plots = T)
 z_2[[2]]
 
 z_3 <- baseline_model_fn(data = scotland_data, outcome = "Planned Hospital Admissions",
-                         postld = T, changepoint = c("2020-09-22"), weighted = T, diag_plots = F)
+                         postld = T, changepoint = c("2020-09-22"), weighted = F, diag_plots = T)
 z_3[[2]]
 
 ## All predictions
@@ -71,7 +57,12 @@ p_itsa <- ggplot(outcome_predictions)+
   geom_vline(xintercept = as.Date("2020-09-22"), colour="white", linetype=1, size=1)+
   # Change-point 1
   geom_vline(xintercept = as.Date("2020-09-22"), colour="firebrick1", linetype=2, size=1)+
-  annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  #annotate("text", x=as.Date("2020-09-25"), y=5, label="Phase 3 restrictions announced\n(22 Sep 2020)", color="firebrick1", hjust=0, size=3.5, fontface =2)+
+  geom_text(data = data.frame(Week_ending = as.Date("2020-09-26"),
+                              text = "Restrictions announced\n(22 Sep 2020)",
+                              Predict = c(5),
+                              Outcome = "A&E Attendances"),
+            aes(x=Week_ending, y=Predict, label = text), hjust=0, size=3, col="firebrick1", fontface=2) +
   # Points
   geom_point(aes(x=Date, y=Variation), size=2, col=eave_blue)+
   theme(legend.position = "bottom") +
@@ -122,7 +113,7 @@ p_ests <- ggplot(outcome_estimates_labels) +
 
 p_ests
 
-png(width=700, height=300,filename = "./outputs/ITSA_ests.png")
+png(width=1300, height=500,filename = "./outputs/ITSA_ests.png")
 p_ests
 
 dev.off()
@@ -160,6 +151,19 @@ z_1[[4]]
 z_2[[4]]
 z_3[[4]]
 
+## Diagnostic plots
+png(width=900, height=500,filename = "./outputs/ITSA_ae_diags.png")
+z_1[[5]]
+dev.off()
+
+
+png(width=900, height=500,filename = "./outputs/ITSA_emerg_diags.png")
+z_2[[5]]
+dev.off()
+
+png(width=900, height=500,filename = "./outputs/ITSA_planned_diags.png")
+z_3[[5]]
+dev.off()
 
 ## Plot ITSA with estimates
 png(width=1100, height=800,filename = "./outputs/ITSA_plot_ests.png")
@@ -216,21 +220,21 @@ anova(baseline_model3)
 # 4 - No_days*BA+Category*No_days+Category*BA
 
 ## Sex
-demographic_models_fn("Sex", "A&E Attendances", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
-demographic_models_fn("Sex", "Emergency Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
-demographic_models_fn("Sex", "Planned Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("Sex", "A&E Attendances", "2020-09-22", T, F) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("Sex", "Emergency Hospital Admissions", "2020-09-22", T, F) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("Sex", "Planned Hospital Admissions", "2020-09-22", T, F) # Baseline model has lowest AIC and BIC 
 # No significant differences between sex
 
 ## Age
-demographic_models_fn("Age", "A&E Attendances", "2020-09-22", T, T) # Three way interaction
-demographic_models_fn("Age", "Emergency Hospital Admissions", "2020-09-22", T, T) # Three way interaction has lowest AIC and significant F-test pvalue
-demographic_models_fn("Age", "Planned Hospital Admissions", "2020-09-22", T, T) # Model 2 or 3 has lowest AIC and BIC
+demographic_models_fn("Age", "A&E Attendances", "2020-09-22", T, F) # Three way interaction
+demographic_models_fn("Age", "Emergency Hospital Admissions", "2020-09-22", T, F) # Three way interaction has lowest AIC and significant F-test pvalue
+demographic_models_fn("Age", "Planned Hospital Admissions", "2020-09-22", T, F) # Three way interaction has lowest AIC and significant F-test pvalue
 # Some differences between age group - requires further investigation
 
 ## SIMD
-demographic_models_fn("SIMD", "A&E Attendances", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
-demographic_models_fn("SIMD", "Emergency Hospital Admissions", "2020-09-22", T, T) # Model 1 has lowest AIC and BIC
-demographic_models_fn("SIMD", "Planned Hospital Admissions", "2020-09-22", T, T) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("SIMD", "A&E Attendances", "2020-09-22", T, F) # Baseline model has lowest AIC and BIC 
+demographic_models_fn("SIMD", "Emergency Hospital Admissions", "2020-09-22", T, F) # Model 1 has lowest AIC and BIC
+demographic_models_fn("SIMD", "Planned Hospital Admissions", "2020-09-22", T, F) # Baseline model has lowest AIC and BIC 
 # No significant differences between SIMDs, possibly something in emergency hosp admissions that needs investigated further
 
 
@@ -238,11 +242,11 @@ demographic_models_fn("SIMD", "Planned Hospital Admissions", "2020-09-22", T, T)
 # demographic_alternative_model_fn from 00_functions.R 
 
 # Age model for A&E Attendances (Model 3)
-age_ae_model <- demographic_alternative_model_fn("Age", "A&E Attendances", 5, as.Date("2020-09-22"), T, T, F)
+age_ae_model <- demographic_alternative_model_fn("Age", "A&E Attendances", 5, as.Date("2020-09-22"), T, F, T)
 # Age model for Emergency Hospital Admissions (Model 3)
-age_emerg_model <- demographic_alternative_model_fn("Age", "Emergency Hospital Admissions", 5, as.Date("2020-09-22"), T, T, F)
+age_emerg_model <- demographic_alternative_model_fn("Age", "Emergency Hospital Admissions", 5, as.Date("2020-09-22"), T, F, T)
 # Age model for Planned Hospital Admissions (Model 3)
-age_planned_model <- demographic_alternative_model_fn("Age", "Planned Hospital Admissions", 5, as.Date("2020-09-22"), T, T, F)
+age_planned_model <- demographic_alternative_model_fn("Age", "Planned Hospital Admissions", 5, as.Date("2020-09-22"), T, F, T)
 
 
 
@@ -279,6 +283,8 @@ p_age_ae_itsa <- ggplot(data.frame(age_ae_model[5]), aes(x=Date, y=Variation))+
 
 
 # Difference before and after estimates
+write.csv(age_ae_model[[4]], file = "./outputs/ae_diff_ests.csv", row.names = F)
+
 p_age_ae_diff_ests <- ggplot(age_ae_model[[4]]) +
   geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
   geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
@@ -352,6 +358,8 @@ p_age_emerg_itsa <- ggplot(data.frame(age_emerg_model[5]), aes(x=Date, y=Variati
 
 
 # Difference before and after estimates
+write.csv(age_emerg_model[[4]], file = "./outputs/emerg_diff_ests.csv", row.names = F)
+
 p_age_emerg_diff_ests <- ggplot(age_emerg_model[[4]]) +
   geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
   geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
@@ -421,6 +429,8 @@ p_age_planned_itsa <- ggplot(data.frame(age_planned_model[5]), aes(x=Date, y=Var
   theme(legend.position = "none")
 
 # Difference before and after estimates
+write.csv(age_planned_model[[4]], file = "./outputs/planned_diff_ests.csv", row.names = F)
+
 p_age_planned_diff_ests <- ggplot(age_planned_model[[4]]) +
   geom_point(aes(x=est, y= categories), size=2.5, col = eave_blue) +
   geom_errorbar(aes(xmin=lwr, xmax=upr, y= categories), width=0, size=0.75, col = eave_blue)+
@@ -464,7 +474,7 @@ p_age_planned
 
 
 ## Age plots side by side
-png(width=600, height=1000,filename = "./outputs/ITSA_age.png")
+png(width=800, height=1000,filename = "./outputs/ITSA_age.png")
 plot_grid(p_age_ae_itsa, p_age_emerg_itsa, p_age_planned_itsa, labels = "AUTO", ncol=1)
 dev.off()
 
@@ -477,6 +487,21 @@ plot_grid(p_age_ae_diff_ests, p_age_emerg_diff_ests, p_age_planned_diff_ests,
           p_age_ae_ests,p_age_emerg_ests, p_age_planned_ests,
           labels = "AUTO", ncol=3)
 
+dev.off()
+
+
+## Diagnostic plots
+png(width=900, height=1000,filename = "./outputs/ITSA_age_ae_diags.png")
+age_ae_model[[6]]
+dev.off()
+
+
+png(width=900, height=1000,filename = "./outputs/ITSA_age_emerg_diags.png")
+age_emerg_model[[6]]
+dev.off()
+
+png(width=900, height=1000,filename = "./outputs/ITSA_age_planned_diags.png")
+age_planned_model[[6]]
 dev.off()
 
 
@@ -596,17 +621,17 @@ dev.off()
 # 4 - No_days*BA+Category*No_days+Category*BA
 
 ## Find which model fits best
-demographic_models_fn("Specialty", "Emergency Hospital Admissions", "2020-09-22", T, T) # 3 way interaction has lowest AIC 
-demographic_models_fn("Specialty", "Planned Hospital Admissions", "2020-09-22", T, T) # 3 way interaction has lowest AIC 
+demographic_models_fn("Specialty", "Emergency Hospital Admissions", "2020-09-22", T, F) # 3 way interaction has lowest AIC 
+demographic_models_fn("Specialty", "Planned Hospital Admissions", "2020-09-22", T, F) # 3 way interaction has lowest AIC 
 
 
 #### 3.2 - Fitting optimum model per Specialty and outcome ####
 # demographic_alternative_model_fn from 00_functions.R 
 
 # Specialty model for Emergency Hospital Admissions (Model 3)
-specialty_emerg_model <- demographic_alternative_model_fn("Specialty", "Emergency Hospital Admissions", 5, as.Date("2020-09-22"), T, T, F)
+specialty_emerg_model <- demographic_alternative_model_fn("Specialty", "Emergency Hospital Admissions", 5, as.Date("2020-09-22"), T, F, T)
 # Specialty model for Planned Hospital Admissions (Model 3)
-specialty_planned_model <- demographic_alternative_model_fn("Specialty", "Planned Hospital Admissions", 5, as.Date("2020-09-22"), T, T, F)
+specialty_planned_model <- demographic_alternative_model_fn("Specialty", "Planned Hospital Admissions", 5, as.Date("2020-09-22"), T, F, T)
 
 
 
@@ -755,4 +780,18 @@ plot_grid(p_spec_emerg_diff_ests, p_spec_planned_diff_ests, p_spec_emerg_ests,
           labels = "AUTO", ncol=2)
 
 dev.off()
+
+
+
+## Diagnostic plots
+png(width=900, height=1200,filename = "./outputs/ITSA_spec_emerg_diags.png")
+specialty_emerg_model[[6]]
+dev.off()
+
+
+png(width=900, height=1000,filename = "./outputs/ITSA_spec_planned_diags.png")
+specialty_planned_model[[6]]
+dev.off()
+
+
 
