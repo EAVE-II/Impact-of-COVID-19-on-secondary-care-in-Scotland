@@ -124,7 +124,8 @@ p_emerg <- ggplot(scotland_data_specialty_emerg) +
         legend.justification="left") +
   scale_x_date(date_breaks = "months" , date_labels = "%b") +
   scale_y_continuous(labels = function(x) paste0(x, "%"))+
-  facet_rep_wrap(~Specialty, ncol=4)
+  facet_rep_wrap(~Specialty, ncol=4) +
+  theme(axis.text=element_text(size=8, angle = 45))
 
 p_emerg
 
@@ -146,7 +147,8 @@ p_planned <- ggplot(scotland_data_specialty_planned) +
         legend.justification="left") +
   scale_x_date(date_breaks = "months" , date_labels = "%b") +
   scale_y_continuous(labels = function(x) paste0(x, "%"))+
-  facet_rep_wrap(~Specialty, ncol=4)
+  facet_rep_wrap(~Specialty, ncol=4) +
+  theme(axis.text=element_text(size=8, angle = 45))
 
 
 p_planned
@@ -154,8 +156,7 @@ p_planned
 plot_grid(p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO")
 
 png(width=900, height=900,filename = "./outputs/specialty_trends.png")
-plot_grid(p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO",
-          rel_heights = c(3/5,2/5))
+plot_grid(p_emerg, p_planned, align="v", ncol = 1, labels = "AUTO")
 
 dev.off()
 
