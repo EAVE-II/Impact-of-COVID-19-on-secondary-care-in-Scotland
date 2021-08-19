@@ -20,6 +20,8 @@ library("tidyverse")
 library("cowplot")
 library("scales")
 library("lemon")
+library("lubridate")
+library("forecast")
 
 #### 0.2 - Create colour scheme #### 
 phs_main <- rgb(67,53,139, maxColorValue = 255)
