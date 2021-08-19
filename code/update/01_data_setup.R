@@ -22,6 +22,7 @@ library("scales")
 library("lemon")
 library("lubridate")
 library("forecast")
+library("gridExtra")
 
 #### 0.2 - Create colour scheme #### 
 phs_main <- rgb(67,53,139, maxColorValue = 255)
@@ -147,5 +148,11 @@ scotland_data_specialty <- scotland_data_specialty[-(which(scotland_data_special
                                                                                                    "Paediatrics (medical & surgical)"))),]
 # Replacing specialities vector with new unique values
 specialties <- unique(scotland_data_specialty$Specialty)
+
+
+# Remove community speciality rows
+scotland_data_specialty <- scotland_data_specialty %>%
+  filter(Specialty != "Community")
+
 
 
