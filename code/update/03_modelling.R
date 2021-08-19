@@ -769,8 +769,7 @@ p_spec_planned
 
 ## Output
 png(width=800, height=700,filename = "./outputs/ITSA_spec.png")
-plot_grid(p_spec_emerg_itsa, p_spec_planned_itsa, labels = "AUTO", ncol=1,
-          rel_heights = c(3/5,2/5))
+plot_grid(p_spec_emerg_itsa, p_spec_planned_itsa, labels = "AUTO", ncol=1)
 dev.off()
 
 
